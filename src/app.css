@@ -118,4 +118,9 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  @theme {
+  --font-sans: "Poppins", sans-serif;
+}
+
 }
