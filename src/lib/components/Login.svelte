@@ -2,14 +2,28 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Card from "$lib/components/ui/card/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
+  import { goto } from "$app/navigation";
+  import { onMount } from "svelte";
+  import { login } from "$lib/services/authService";
 
-  let email = "";
-  let password = "";
+  let email = '';
+  let password = '';
+  let error = '';
+
+  // ✅ Verifica tokens al cargar
+  onMount(() => {
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("token");
+      const role = localStorage.getItem("role");
+      if (token && role) {
+        goto(`/${role}`);
+      }
+    }
+  });
 
   let errors = { email: "", password: "" };
   let touched = { email: false, password: false };
 
-  // Funciones de validación
   function validateEmail(value: string) {
     if (!value) return "El correo electrónico es obligatorio.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
@@ -25,24 +39,23 @@
     return "";
   }
 
-  // Validación dinámica
   function handleInput(field: "email" | "password") {
-    if (!touched[field]) touched[field] = true; // Se activa al primer focus
+    if (!touched[field]) touched[field] = true;
     if (field === "email") errors.email = validateEmail(email);
     if (field === "password") errors.password = validatePassword(password);
   }
 
-  function handleSubmit(e: Event) {
-    e.preventDefault();
-    touched = { email: true, password: true };
-    errors.email = validateEmail(email);
-    errors.password = validatePassword(password);
-
-    if (!errors.email && !errors.password) {
-      alert("Inicio de sesión exitoso 🎉");
+  async function handleSubmit() {
+    const success = await login(email, password);
+    if (success) {
+      const role = localStorage.getItem("role");
+      goto(`/${role}`);
+    } else {
+      error = "Usuario o contraseña incorrectos.";
     }
   }
 </script>
+
 
 <!-- Fondo -->
 <div class="min-h-screen flex items-center justify-center bg-[#f9f7f3] bg-gradient-to-b from-[#f3eee7] to-[#e7dfd5] font-[Poppins] px-4">
@@ -56,15 +69,15 @@
           Iniciar sesión
         </h2>
         <br>
-        <p class="text-[#716557] text-sm font-light leading-snug">
+        <p class="text-black text-sm font-base leading-snug">
           Ingresa tus credenciales para acceder al sistema clínico
         </p>
       </div>
 
-      <form class="flex flex-col gap-5" on:submit={handleSubmit}>
+      <form class="flex flex-col gap-5" on:submit|preventDefault={handleSubmit}>
         <!-- EMAIL -->
         <div class="flex flex-col gap-1.5">
-          <Label for="email" class="text-[#413533] font-medium text-sm">
+          <Label for="email" class="text-black font-medium text-sm">
             Correo electrónico
           </Label>
           <input
@@ -86,7 +99,7 @@
 
         <!-- PASSWORD -->
         <div class="flex flex-col gap-1.5">
-          <Label for="password" class="text-[#413533] font-medium text-sm">
+          <Label for="password" class="text-black font-medium text-sm">
             Contraseña
           </Label>
           <input
@@ -105,7 +118,7 @@
             <span class="text-xs text-red-500 mt-1">{errors.password}</span>
           {/if}
 
-          <a href="#" class="text-xs text-[#a9887f] hover:text-[#716557] transition-colors font-medium text-right mt-1">
+          <a href="#" class="text-m text-[#a9887f] hover:text-[#716557] transition-colors font-base text-right mt-1">
             ¿Olvidaste tu contraseña?
           </a>
         </div>
@@ -113,13 +126,11 @@
         <!-- BOTÓN -->
         <Button
           type="submit"
-          class="w-full bg-[#a9887f] hover:bg-[#8d6c63] text-white font-semibold py-2.5 rounded-lg shadow-md transition-all tracking-wide mt-2"
+          class="w-full bg-[#a9887f] hover:bg-[#8d6c63] text-white font-bold py-2.5 rounded-lg shadow-md transition-all tracking-wide mt-2"
         >
           Iniciar sesión
         </Button>
       </form>
-
-      <a href="/admin">Hola</a>
 
       <div class="text-center text-xs text-[#716557] mt-6 font-light">
         © 2025 <span class="text-[#a9887f] font-medium">Clínica Salud Vital</span>. Todos los derechos reservados.
