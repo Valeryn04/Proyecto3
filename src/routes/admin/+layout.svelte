@@ -16,18 +16,18 @@
     email: "admin@valeryn.com",
   };
 
-function handleLogout() {
-  console.log("Cerrar sesión");
+  function handleLogout() {
+    console.log("Cerrar sesión");
 
-  // 🔹 Limpia toda la sesión del usuario
-  localStorage.removeItem("usuario");
-  localStorage.removeItem("token");
-  localStorage.removeItem("role");
-  sessionStorage.clear(); // por si guardas cosas ahí también
+    // 🔹 Limpia toda la sesión del usuario
+    localStorage.removeItem("usuario");
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    sessionStorage.clear(); // por si guardas cosas ahí también
 
-  // 🔹 Redirige al login
-  goto("/", { replaceState: true });
-}
+    // 🔹 Redirige al login
+    goto("/", { replaceState: true });
+  }
 </script>
 
 <SidebarProvider class="min-h-screen w-full">
@@ -62,7 +62,17 @@ function handleLogout() {
           <DropdownMenuContent
             class="w-60 mt-2 bg-white border border-[#e5e0d3] shadow-md rounded-md"
             align="end"
-          >
+            ><DropdownMenuItem>
+              <button
+                on:click={() => goto("/admin/perfil")}
+                class="flex items-center w-full text-left text-black hover:text-white hover:bg-[#da8780] py-2 px-2 rounded-md transition-colors text-base"
+              >
+                Mi perfil
+              </button>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
             <DropdownMenuItem>
               <button
                 on:click={handleLogout}
