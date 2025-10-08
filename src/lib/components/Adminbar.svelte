@@ -15,7 +15,7 @@
   const items = [
     { icon: "bi bi-bar-chart-steps", title: "Dashboard", url: "/admin" },
     { icon: "bi bi-people-fill", title: "Usuarios", url: "/admin/usuarios" },
-    { icon: "bi bi-universal-access", title: "Permisos", url: "/admin/settings" },
+    { icon: "bi bi-universal-access", title: "Permisos", url: "/admin/permisos" },
   ];
 
   const user = {

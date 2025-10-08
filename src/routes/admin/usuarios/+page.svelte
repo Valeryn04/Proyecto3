@@ -1,8 +1,7 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import Crearuser from "$lib/components/Crearuser.svelte";
   import "bootstrap-icons/font/bootstrap-icons.css";
-import Editaruser from "$lib/components/Editaruser.svelte";
+  import Crearuser from "$lib/components/Crearuser.svelte";
+  import Editaruser from "$lib/components/Editaruser.svelte";
 
   type Usuario = {
     id: number;
@@ -71,14 +70,10 @@ import Editaruser from "$lib/components/Editaruser.svelte";
     mostrarModal = true;
   }
 
-let usuarioEditando: any = null;
+  let usuarioEditando: any = null;
 
-function editarUsuario(id: number) {
-  usuarioEditando = usuarios.find((u) => u.id === id);
-}
-
-  function eliminarUsuario(id: number) {
-    console.log("Eliminar Usuario", id);
+  function editarUsuario(id: number) {
+    usuarioEditando = usuarios.find((u) => u.id === id);
   }
 
   function toggleSort(column: keyof Usuario) {
@@ -138,19 +133,21 @@ function editarUsuario(id: number) {
     return sorted;
   }
 
-  function toggleEstado(id: number) {
-    const usuario = usuarios.find((u) => u.id === id);
-    if (usuario) {
-      usuario.estado = usuario.estado === "Activo" ? "Inactivo" : "Activo";
-    }
-  }
+ function toggleEstado(id: number) {
+  usuarios = usuarios.map((u) =>
+    u.id === id
+      ? { ...u, estado: u.estado === "Activo" ? "Inactivo" : "Activo" }
+      : u
+  );
+}
 </script>
 
 <div class="flex items-center justify-between mb-5">
   <h2 class="text-2xl font-semibold text-black-800">Listado de usuarios</h2>
   <button
+    class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4
+         bg-[#da8780] hover:bg-[#c86c66] text-white"
     on:click={crearUsuario}
-    class="inline-flex items-center gap-2 bg-[#da8780] hover:text-black hover:bg-[#da8780]/10 text-white font-bold px-4 py-2 rounded-lg shadow"
   >
     <i class="bi bi-plus-lg"></i>
     Crear usuario
@@ -158,30 +155,29 @@ function editarUsuario(id: number) {
 </div>
 
 <div
-  class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
+  class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
 >
-  <div class="flex items-center gap-2 w-full md:w-[75%]">
-    <input
-      type="text"
-      placeholder="Buscar por nombre, correo, documento..."
-      bind:value={search}
-      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800"
-    />
+  <input
+    type="text"
+    placeholder="Buscar"
+    bind:value={search}
+    class="w-full md:w-[70%] px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#da8780]"
+  />
 
     <select
       bind:value={estadoFiltro}
-      class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800"
+      class="border border-black-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring--[#da8780] bg-white text-black-800"
     >
       <option value="Todos">Todos los estados</option>
       <option value="Activo">Activo</option>
       <option value="Inactivo">Inactivo</option>
     </select>
   </div>
-</div>
 
 <div
   class="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden mt-4"
->  <div
+>
+  <div
     class="overflow-x-auto max-w-[calc(150vw-18rem)] scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100"
   >
     <table class="min-w-[1200px] table-auto w-full text-sm">
@@ -189,7 +185,6 @@ function editarUsuario(id: number) {
         class="bg-[#e7e7d3] text-gray-700 text-sm font-semibold tracking-wide uppercase"
       >
         <tr>
-          <!-- ID -->
           <th
             class="text-left px-4 py-3 border-b border-gray-200 cursor-pointer"
             on:click={() => toggleSort("id")}
@@ -247,9 +242,7 @@ function editarUsuario(id: number) {
           </th>
 
           <!-- TIPO DOCUMENTO -->
-          <th class="text-left px-4 py-3 border-b border-gray-200">TipoDoc
-
-          </th>
+          <th class="text-left px-4 py-3 border-b border-gray-200">TipoDoc </th>
 
           <!-- DOCUMENTO -->
           <th
@@ -271,19 +264,17 @@ function editarUsuario(id: number) {
           </th>
 
           <!-- TELÉFONO -->
-          <th class="text-left px-4 py-3 border-b border-gray-200">Teléfono
-          
+          <th class="text-left px-4 py-3 border-b border-gray-200"
+            >Teléfono
           </th>
 
           <!-- DIRECCIÓN -->
-          <th class="text-left px-4 py-3 border-b border-gray-200">Dirección
-            </th
-          >
+          <th class="text-left px-4 py-3 border-b border-gray-200"
+            >Dirección
+          </th>
 
           <!-- SEXO -->
-          <th class="text-left px-4 py-3 border-b border-gray-200">Sexo
-
-          </th>
+          <th class="text-left px-4 py-3 border-b border-gray-200">Sexo </th>
 
           <!-- CORREO -->
           <th
@@ -324,9 +315,7 @@ function editarUsuario(id: number) {
           </th>
 
           <!-- ESTADO -->
-          <th class="text-left px-4 py-3 border-b border-gray-200">Estado
-
-          </th>
+          <th class="text-left px-4 py-3 border-b border-gray-200">Estado </th>
 
           <!-- ACCIONES -->
           <th class="text-center px-4 py-3 border-b border-gray-200"
@@ -405,7 +394,7 @@ function editarUsuario(id: number) {
     usuario={usuarioEditando}
     onClose={() => (usuarioEditando = null)}
     onSave={(data) => {
-      const index = usuarios.findIndex(u => u.id === data.id);
+      const index = usuarios.findIndex((u) => u.id === data.id);
       if (index !== -1) usuarios[index] = data;
       usuarioEditando = null;
     }}
