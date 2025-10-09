@@ -1,71 +1,144 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
+  import { crearUsuario } from "../services/userService"; // 👈 importa el servicio
+  import { onMount } from "svelte";
 
   export let visible: boolean;
   export let onClose: () => void;
 
   const dispatch = createEventDispatcher();
 
+  let cargando = false;
+
   // Datos del formulario
-  let usuario = {
+  let formData = {
+    usuario: "",
+    contrasena: "",
     nombre: "",
     apellido: "",
-    correo: "",
-    tipoDocumento: "",
-    documento: "",
-    fechaNacimiento: "",
+    email: "",
+    tipo_documento: "",
+    numero_documento: "",
+    fecha_nacimiento: "",
     sexo: "",
     telefono: "",
     direccion: "",
-    perfil: "",
-    estado: ""
+    id_rol: "",
+    estado: true,
   };
 
   // Errores de validación
   let errores: Record<string, string> = {};
 
-  // Cerrar modal
   function cerrarModal() {
+    formData = {
+      usuario: "",
+      contrasena: "",
+      nombre: "",
+      apellido: "",
+      email: "",
+      tipo_documento: "",
+      numero_documento: "",
+      fecha_nacimiento: "",
+      sexo: "",
+      telefono: "",
+      direccion: "",
+      id_rol: "",
+      estado: true,
+    };
+    errores = {};
     onClose();
   }
 
-  // Validar campos
   function validarFormulario() {
     errores = {};
-    if (!usuario.nombre.trim()) errores.nombre = "El nombre es obligatorio.";
-    if (!usuario.apellido.trim()) errores.apellido = "El apellido es obligatorio.";
-    if (!usuario.correo.trim() || !usuario.correo.includes("@"))
-      errores.correo = "Correo inválido.";
-    if (!usuario.tipoDocumento) errores.tipoDocumento = "Seleccione un tipo de documento.";
-    if (!usuario.documento.trim()) errores.documento = "Número de documento requerido.";
-    if (!usuario.fechaNacimiento.trim()) errores.fechaNacimiento = "Seleccione una fecha.";
-    if (!usuario.sexo) errores.sexo = "Seleccione el sexo.";
-    if (!usuario.telefono.trim()) errores.telefono = "El teléfono es obligatorio.";
-    if (!usuario.direccion.trim()) errores.direccion = "La dirección es obligatoria.";
-    if (!usuario.perfil) errores.perfil = "Seleccione un perfil.";
-    if (!usuario.estado) errores.estado = "Seleccione el estado.";
+
+    if (!formData.usuario.trim())
+      errores.usuario = "El nombre de usuario es obligatorio.";
+    if (!formData.contrasena || formData.contrasena.length < 8)
+      errores.contrasena = "La contraseña debe tener al menos 8 caracteres.";
+    else if (!/[!@#$%^&*(),.?":{}|<>]/.test(formData.contrasena))
+      errores.contrasena = "Debe incluir un símbolo especial.";
+
+    if (!formData.nombre.trim()) errores.nombre = "El nombre es obligatorio.";
+    if (!formData.apellido.trim())
+      errores.apellido = "El apellido es obligatorio.";
+    if (!formData.email.trim() || !formData.email.includes("@"))
+      errores.email = "Correo electrónico inválido.";
+    if (!formData.tipo_documento)
+      errores.tipo_documento = "Seleccione un tipo de documento.";
+    if (!formData.numero_documento.trim())
+      errores.numero_documento = "Número de documento requerido.";
+    if (!formData.fecha_nacimiento.trim())
+      errores.fecha_nacimiento = "Seleccione una fecha de nacimiento.";
+    if (!formData.sexo) errores.sexo = "Seleccione el sexo.";
+    if (!formData.telefono.trim())
+      errores.telefono = "El teléfono es obligatorio.";
+    if (!formData.direccion.trim())
+      errores.direccion = "La dirección es obligatoria.";
+    if (!formData.id_rol) errores.id_rol = "Seleccione un rol.";
 
     return Object.keys(errores).length === 0;
   }
 
-  // Guardar usuario
-  function guardarUsuario() {
+  async function guardarUsuario() {
     if (!validarFormulario()) return;
-    console.log("✅ Usuario creado:", usuario);
-    dispatch("crear", usuario);
-    cerrarModal();
+    cargando = true;
+
+    const usuarioPayload = {
+      usuario: formData.usuario,
+      contrasena: formData.contrasena,
+      nombre: formData.nombre,
+      apellido: formData.apellido,
+      tipo_documento: formData.tipo_documento,
+      numero_documento: formData.numero_documento,
+      fecha_nacimiento: formData.fecha_nacimiento,
+      sexo: formData.sexo,
+      telefono: formData.telefono,
+      email: formData.email,
+      direccion: formData.direccion,
+      estado: formData.estado,
+      id_rol: parseInt(formData.id_rol),
+    };
+
+    console.log("📦 Enviando usuario al backend:", usuarioPayload);
+
+    try {
+      const respuesta = await crearUsuario(usuarioPayload);
+      console.log("✅ Usuario creado:", respuesta);
+
+      alert("Usuario creado exitosamente ✅");
+      dispatch("save", respuesta);
+      cerrarModal();
+    } catch (error: unknown) {
+      console.error("❌ Error al crear usuario:", error);
+      let mensaje = "Error al guardar el usuario.";
+
+      if (error instanceof Error) {
+        mensaje += " " + error.message;
+      }
+
+      alert(mensaje);
+    } finally {
+      cargando = false;
+    }
+  }
+
+  // Generar contraseña automática
+  function generarContrasenaAutomatica() {
+    if (formData.numero_documento.trim()) {
+      formData.contrasena = formData.numero_documento + "!";
+    }
   }
 </script>
 
 {#if visible}
-  <!-- Fondo -->
   <div
     class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
     on:click={cerrarModal}
   >
-    <!-- Modal -->
     <div
-      class="bg-white rounded-xl shadow-lg w-[95%] max-w-3xl p-6 relative animate-fadeIn"
+      class="bg-white rounded-xl shadow-lg w-[95%] max-w-3xl max-h-[90vh] overflow-y-auto p-6 relative animate-fadeIn"
       on:click|stopPropagation
     >
       <h2 class="text-xl font-semibold mb-4 text-black text-center">
@@ -76,11 +149,50 @@
         class="grid grid-cols-1 sm:grid-cols-2 gap-4"
         on:submit|preventDefault={guardarUsuario}
       >
+        <!-- Usuario -->
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-medium text-gray-700">Usuario</label>
+          <input
+            bind:value={formData.usuario}
+            type="text"
+            placeholder="Ej: ana.gomez"
+            class="w-full border border-gray-300 rounded-md p-2 mt-1"
+          />
+          {#if errores.usuario}
+            <p class="text-red-500 text-sm mt-1">{errores.usuario}</p>
+          {/if}
+        </div>
+
+        <!-- Contraseña -->
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-medium text-gray-700"
+            >Contraseña</label
+          >
+          <div class="flex gap-2">
+            <input
+              bind:value={formData.contrasena}
+              type="password"
+              placeholder="********"
+              class="flex-1 border border-gray-300 rounded-md p-2 mt-1"
+            />
+            <button
+              type="button"
+              on:click={generarContrasenaAutomatica}
+              class="mt-1 px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-md"
+            >
+              Auto
+            </button>
+          </div>
+          {#if errores.contrasena}
+            <p class="text-red-500 text-sm mt-1">{errores.contrasena}</p>
+          {/if}
+        </div>
+
         <!-- Nombre -->
         <div>
-          <label class="block text-sm font-medium text-black-700">Nombre</label>
+          <label class="block text-sm font-medium text-gray-700">Nombre</label>
           <input
-            bind:value={usuario.nombre}
+            bind:value={formData.nombre}
             type="text"
             placeholder="Ej: Ana"
             class="w-full border border-gray-300 rounded-md p-2 mt-1"
@@ -92,9 +204,10 @@
 
         <!-- Apellido -->
         <div>
-          <label class="block text-sm font-medium text-black-700">Apellido</label>
+          <label class="block text-sm font-medium text-gray-700">Apellido</label
+          >
           <input
-            bind:value={usuario.apellido}
+            bind:value={formData.apellido}
             type="text"
             placeholder="Ej: Gómez"
             class="w-full border border-gray-300 rounded-md p-2 mt-1"
@@ -104,25 +217,29 @@
           {/if}
         </div>
 
-        <!-- Correo -->
+        <!-- Email -->
         <div class="sm:col-span-2">
-          <label class="block text-sm font-medium text-black-700">Correo</label>
+          <label class="block text-sm font-medium text-gray-700"
+            >Correo electrónico</label
+          >
           <input
-            bind:value={usuario.correo}
+            bind:value={formData.email}
             type="email"
             placeholder="ejemplo@correo.com"
             class="w-full border border-gray-300 rounded-md p-2 mt-1"
           />
-          {#if errores.correo}
-            <p class="text-red-500 text-sm mt-1">{errores.correo}</p>
+          {#if errores.email}
+            <p class="text-red-500 text-sm mt-1">{errores.email}</p>
           {/if}
         </div>
 
         <!-- Tipo documento -->
         <div>
-          <label class="block text-sm font-medium text-black-700">Tipo Documento</label>
+          <label class="block text-sm font-medium text-gray-700"
+            >Tipo Documento</label
+          >
           <select
-            bind:value={usuario.tipoDocumento}
+            bind:value={formData.tipo_documento}
             class="w-full border border-gray-300 rounded-md p-2 mt-1"
           >
             <option value="">Seleccione</option>
@@ -131,49 +248,53 @@
             <option value="CE">Cédula de Extranjería</option>
             <option value="NIT">NIT</option>
           </select>
-          {#if errores.tipoDocumento}
-            <p class="text-red-500 text-sm mt-1">{errores.tipoDocumento}</p>
+          {#if errores.tipo_documento}
+            <p class="text-red-500 text-sm mt-1">{errores.tipo_documento}</p>
           {/if}
         </div>
 
         <!-- Documento -->
         <div>
-          <label class="block text-sm font-medium text-black-700">Número Documento</label>
+          <label class="block text-sm font-medium text-gray-700"
+            >Número Documento</label
+          >
           <input
-            bind:value={usuario.documento}
+            bind:value={formData.numero_documento}
             type="text"
             placeholder="Ej: 12345678"
             class="w-full border border-gray-300 rounded-md p-2 mt-1"
           />
-          {#if errores.documento}
-            <p class="text-red-500 text-sm mt-1">{errores.documento}</p>
+          {#if errores.numero_documento}
+            <p class="text-red-500 text-sm mt-1">{errores.numero_documento}</p>
           {/if}
         </div>
 
-        <!-- Fecha nacimiento -->
+        <!-- Fecha -->
         <div>
-          <label class="block text-sm font-medium text-black-700">Fecha de Nacimiento</label>
+          <label class="block text-sm font-medium text-gray-700"
+            >Fecha Nacimiento</label
+          >
           <input
-            bind:value={usuario.fechaNacimiento}
+            bind:value={formData.fecha_nacimiento}
             type="date"
             class="w-full border border-gray-300 rounded-md p-2 mt-1"
           />
-          {#if errores.fechaNacimiento}
-            <p class="text-red-500 text-sm mt-1">{errores.fechaNacimiento}</p>
+          {#if errores.fecha_nacimiento}
+            <p class="text-red-500 text-sm mt-1">{errores.fecha_nacimiento}</p>
           {/if}
         </div>
 
         <!-- Sexo -->
         <div>
-          <label class="block text-sm font-medium text-black-700">Sexo</label>
+          <label class="block text-sm font-medium text-gray-700">Sexo</label>
           <select
-            bind:value={usuario.sexo}
+            bind:value={formData.sexo}
             class="w-full border border-gray-300 rounded-md p-2 mt-1"
           >
             <option value="">Seleccione</option>
-            <option value="Masculino">Masculino</option>
-            <option value="Femenino">Femenino</option>
-            <option value="Otro">Otro</option>
+            <option value="M">Masculino</option>
+            <option value="F">Femenino</option>
+            <option value="O">Otro</option>
           </select>
           {#if errores.sexo}
             <p class="text-red-500 text-sm mt-1">{errores.sexo}</p>
@@ -182,9 +303,10 @@
 
         <!-- Teléfono -->
         <div>
-          <label class="block text-sm font-medium text-black-700">Teléfono</label>
+          <label class="block text-sm font-medium text-gray-700">Teléfono</label
+          >
           <input
-            bind:value={usuario.telefono}
+            bind:value={formData.telefono}
             type="tel"
             placeholder="Ej: 3123456789"
             class="w-full border border-gray-300 rounded-md p-2 mt-1"
@@ -196,11 +318,13 @@
 
         <!-- Dirección -->
         <div>
-          <label class="block text-sm font-medium text-black-700">Dirección</label>
+          <label class="block text-sm font-medium text-gray-700"
+            >Dirección</label
+          >
           <input
-            bind:value={usuario.direccion}
+            bind:value={formData.direccion}
             type="text"
-            placeholder="Ej: Calle 10 # 5-20"
+            placeholder="Ej: Calle 10 #5-20"
             class="w-full border border-gray-300 rounded-md p-2 mt-1"
           />
           {#if errores.direccion}
@@ -208,52 +332,56 @@
           {/if}
         </div>
 
-        <!-- Perfil -->
+        <!-- Rol -->
         <div>
-          <label class="block text-sm font-medium text-black-700">Rol / Perfil</label>
+          <label class="block text-sm font-medium text-gray-700"
+            >Rol / Perfil</label
+          >
           <select
-            bind:value={usuario.perfil}
+            bind:value={formData.id_rol}
             class="w-full border border-gray-300 rounded-md p-2 mt-1"
           >
             <option value="">Seleccione</option>
-            <option value="Administrador">Administrador</option>
-            <option value="Cliente">Cliente</option>
+            <option value="1">Administrador</option>
+            <option value="2">Asistente</option>
           </select>
-          {#if errores.perfil}
-            <p class="text-red-500 text-sm mt-1">{errores.perfil}</p>
+          {#if errores.id_rol}
+            <p class="text-red-500 text-sm mt-1">{errores.id_rol}</p>
           {/if}
         </div>
 
         <!-- Estado -->
         <div>
-          <label class="block text-sm font-medium text-black-700">Estado</label>
+          <label class="block text-sm font-medium text-gray-700">Estado</label>
           <select
-            bind:value={usuario.estado}
+            bind:value={formData.estado}
             class="w-full border border-gray-300 rounded-md p-2 mt-1"
           >
-            <option value="">Seleccione</option>
-            <option value="Activo">Activo</option>
-            <option value="Inactivo">Inactivo</option>
+            <option value={true}>Activo</option>
+            <option value={false}>Inactivo</option>
           </select>
-          {#if errores.estado}
-            <p class="text-red-500 text-sm mt-1">{errores.estado}</p>
-          {/if}
         </div>
 
         <!-- Botones -->
-        <div class="col-span-2 flex justify-end mt-4 space-x-3">
+        <div class="col-span-2 flex justify-end mt-4 gap-3">
           <button
             type="button"
-            class="px-4 py-2 rounded-md border border-gray-300 text-black-700 hover:bg-gray-100"
+            class="px-5 py-2 rounded-md border border-gray-300 hover:bg-gray-100"
             on:click={cerrarModal}
           >
             Cancelar
           </button>
           <button
             type="submit"
-            class="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700"
+            class="px-5 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700"
+            disabled={cargando}
           >
-            Guardar
+            {#if cargando}
+              Guardando...
+            {/if}
+            {#if !cargando}
+              Guardar Usuario
+            {/if}
           </button>
         </div>
       </form>

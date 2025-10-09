@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import "bootstrap-icons/font/bootstrap-icons.css";
   import Crearuser from "$lib/components/Crearuser.svelte";
   import Editaruser from "$lib/components/Editaruser.svelte";
+  import { fetchUsuarios } from "$lib/services/userService";
 
   type Usuario = {
     id: number;
@@ -17,52 +19,56 @@
     estado: string;
   };
 
+    const roles: Record<number, string> = {
+    1: "Administrador",
+    2: "Médico",
+    3: "Paciente", // Agrega más roles según los necesites
+  };
+
   let sortColumn: keyof Usuario = "id";
   let sortDirection: "asc" | "desc" = "asc";
   let search = "";
   let estadoFiltro = "Todos";
 
-  let usuarios: Usuario[] = [
-    {
-      id: 1,
-      nombre: "Administrador",
-      apellido: "SpaceIS",
-      tipoDocumento: "CC",
-      documento: "123456887",
-      correo: "administrador@yopmail.com",
-      telefono: "3105678999",
-      direccion: "Calle 45 #23-12",
-      sexo: "Femenino",
-      perfil: "Administrador",
-      estado: "Activo",
-    },
-    {
-      id: 2,
-      nombre: "Carolina",
-      apellido: "Caicedo",
-      tipoDocumento: "CC",
-      documento: "38552034",
-      correo: "ccaicedo@mcc.com.co",
-      telefono: "3012345678",
-      direccion: "Carrera 56 #12-80",
-      sexo: "Femenino",
-      perfil: "Administrador",
-      estado: "Activo",
-    },
-    {
-      id: 3,
-      nombre: "Daniel",
-      apellido: "Soto",
-      tipoDocumento: "CC",
-      documento: "333333333",
-      correo: "dsoto@barranquilla.gov.co",
-      telefono: "3009876543",
-      direccion: "Av. Las Palmas 123",
-      sexo: "Masculino",
-      perfil: "Administrador",
-      estado: "Inactivo",
-    },
-  ];
+  let usuarios: Usuario[] = [];
+  let loading = true;
+  let errorMessage = "";
+
+ onMount(async () => {
+    try {
+      loading = true;
+      errorMessage = "";
+      const rawUsuarios = await fetchUsuarios();
+
+      // Debug para usuarios sin id_usuario
+      rawUsuarios.forEach((u: any) => {
+        if (u.id_usuario === undefined || u.id_usuario === null) {
+          console.warn("Usuario sin id_usuario detectado:", u);
+        }
+      });
+
+      usuarios = rawUsuarios
+        .filter((u: any) => u.id_usuario !== undefined && u.id_usuario !== null)
+        .map((u: any) => ({
+          id: u.id_usuario,
+          nombre: u.nombre,
+          apellido: u.apellido,
+          tipoDocumento: u.tipo_documento,
+          documento: u.numero_documento,
+          correo: u.email,
+          telefono: u.telefono,
+          direccion: u.direccion,
+          sexo: u.sexo,
+          perfil: roles[u.id_rol] || "Desconocido", // Asignar rol usando el id_rol
+          estado: u.estado === 1 ? "Activo" : "Inactivo"
+        }));
+    } catch (error) {
+      console.error(error);
+      errorMessage = "Error al cargar usuarios.";
+    } finally {
+      loading = false;
+    }
+  });
 
   let mostrarModal = false;
 
@@ -70,10 +76,10 @@
     mostrarModal = true;
   }
 
-  let usuarioEditando: any = null;
+  let usuarioEditando: Usuario | null = null;
 
   function editarUsuario(id: number) {
-    usuarioEditando = usuarios.find((u) => u.id === id);
+    usuarioEditando = usuarios.find((u: Usuario) => u.id === id) ?? null;
   }
 
   function toggleSort(column: keyof Usuario) {
@@ -100,7 +106,7 @@
     search: string,
     estadoFiltro: string
   ) {
-    const filtered = data.filter((u) => {
+    const filtered = data.filter((u: Usuario) => {
       const matchesSearch = Object.values(u)
         .join(" ")
         .toLowerCase()
@@ -133,13 +139,13 @@
     return sorted;
   }
 
- function toggleEstado(id: number) {
-  usuarios = usuarios.map((u) =>
-    u.id === id
-      ? { ...u, estado: u.estado === "Activo" ? "Inactivo" : "Activo" }
-      : u
-  );
-}
+  function toggleEstado(id: number) {
+    usuarios = usuarios.map((u: Usuario) =>
+      u.id === id
+        ? { ...u, estado: u.estado === "Activo" ? "Inactivo" : "Activo" }
+        : u
+    );
+  }
 </script>
 
 <div class="flex items-center justify-between mb-5">
@@ -164,228 +170,268 @@
     class="w-full md:w-[70%] px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#da8780]"
   />
 
-    <select
-      bind:value={estadoFiltro}
-      class="border border-black-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring--[#da8780] bg-white text-black-800"
-    >
-      <option value="Todos">Todos los estados</option>
-      <option value="Activo">Activo</option>
-      <option value="Inactivo">Inactivo</option>
-    </select>
-  </div>
-
-<div
-  class="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden mt-4"
->
-  <div
-    class="overflow-x-auto max-w-[calc(150vw-18rem)] scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100"
+  <select
+    bind:value={estadoFiltro}
+    class="border border-black-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring--[#da8780] bg-white text-black-800"
   >
-    <table class="min-w-[1200px] table-auto w-full text-sm">
-      <thead
-        class="bg-[#e7e7d3] text-gray-700 text-sm font-semibold tracking-wide uppercase"
-      >
-        <tr>
-          <th
-            class="text-left px-4 py-3 border-b border-gray-200 cursor-pointer"
-            on:click={() => toggleSort("id")}
-          >
-            <div class="flex items-center gap-1.5">
-              <span>ID</span>
-              {#if sortColumn === "id"}
-                <i
-                  class={"bi text-[0.8rem] " +
-                    (sortDirection === "asc"
-                      ? "bi-arrow-up"
-                      : "bi-arrow-down") +
-                    " text-blue-500"}
-                ></i>
-              {/if}
-            </div></th
-          >
-
-          <!-- NOMBRE -->
-          <th
-            class="text-left px-4 py-3 border-b border-gray-200 cursor-pointer"
-            on:click={() => toggleSort("nombre")}
-          >
-            <div class="flex items-center gap-1.5">
-              <span>Nombre</span>
-              {#if sortColumn === "nombre"}
-                <i
-                  class={"bi text-[0.8rem] " +
-                    (sortDirection === "asc"
-                      ? "bi-arrow-up"
-                      : "bi-arrow-down") +
-                    " text-blue-500"}
-                ></i>
-              {/if}
-            </div>
-          </th>
-
-          <!-- APELLIDO -->
-          <th
-            class="text-left px-4 py-3 border-b border-gray-200 cursor-pointer"
-            on:click={() => toggleSort("apellido")}
-          >
-            <div class="flex items-center gap-1.5">
-              <span>Apellido</span>
-              {#if sortColumn === "apellido"}
-                <i
-                  class={"bi text-[0.8rem] " +
-                    (sortDirection === "asc"
-                      ? "bi-arrow-up"
-                      : "bi-arrow-down") +
-                    " text-blue-500"}
-                ></i>
-              {/if}
-            </div>
-          </th>
-
-          <!-- TIPO DOCUMENTO -->
-          <th class="text-left px-4 py-3 border-b border-gray-200">TipoDoc </th>
-
-          <!-- DOCUMENTO -->
-          <th
-            class="text-left px-4 py-3 border-b border-gray-200 cursor-pointer"
-            on:click={() => toggleSort("documento")}
-          >
-            <div class="flex items-center gap-1.5">
-              <span>N° Documento</span>
-              {#if sortColumn === "documento"}
-                <i
-                  class={"bi text-[0.8rem] " +
-                    (sortDirection === "asc"
-                      ? "bi-arrow-up"
-                      : "bi-arrow-down") +
-                    " text-blue-500"}
-                ></i>
-              {/if}
-            </div>
-          </th>
-
-          <!-- TELÉFONO -->
-          <th class="text-left px-4 py-3 border-b border-gray-200"
-            >Teléfono
-          </th>
-
-          <!-- DIRECCIÓN -->
-          <th class="text-left px-4 py-3 border-b border-gray-200"
-            >Dirección
-          </th>
-
-          <!-- SEXO -->
-          <th class="text-left px-4 py-3 border-b border-gray-200">Sexo </th>
-
-          <!-- CORREO -->
-          <th
-            class="text-left px-4 py-3 border-b border-gray-200 cursor-pointer"
-            on:click={() => toggleSort("correo")}
-          >
-            <div class="flex items-center gap-1.5">
-              <span>Correo</span>
-              {#if sortColumn === "correo"}
-                <i
-                  class={"bi text-[0.8rem] " +
-                    (sortDirection === "asc"
-                      ? "bi-arrow-up"
-                      : "bi-arrow-down") +
-                    " text-blue-500"}
-                ></i>
-              {/if}
-            </div>
-          </th>
-
-          <!-- PERFIL -->
-          <th
-            class="text-left px-4 py-3 border-b border-gray-200 cursor-pointer"
-            on:click={() => toggleSort("perfil")}
-          >
-            <div class="flex items-center gap-1.5">
-              <span>Perfil</span>
-              {#if sortColumn === "perfil"}
-                <i
-                  class={"bi text-[0.8rem] " +
-                    (sortDirection === "asc"
-                      ? "bi-arrow-up"
-                      : "bi-arrow-down") +
-                    " text-blue-500"}
-                ></i>
-              {/if}
-            </div>
-          </th>
-
-          <!-- ESTADO -->
-          <th class="text-left px-4 py-3 border-b border-gray-200">Estado </th>
-
-          <!-- ACCIONES -->
-          <th class="text-center px-4 py-3 border-b border-gray-200"
-            >Acciones</th
-          >
-        </tr>
-      </thead>
-
-      <tbody>
-        {#if displayed.length === 0}
-          <tr>
-            <td colspan="13" class="px-4 py-6 text-center text-gray-500">
-              No se encontraron resultados
-            </td>
-          </tr>
-        {:else}
-          {#each displayed as u (u.id)}
-            <tr
-              class="even:bg-white odd:bg-gray-50 hover:bg-gray-100 transition"
-            >
-              <td class="px-4 py-3 border-b border-gray-100">{u.id}</td>
-              <td class="px-4 py-3 border-b border-gray-100">{u.nombre}</td>
-              <td class="px-4 py-3 border-b border-gray-100">{u.apellido}</td>
-              <td class="px-4 py-3 border-b border-gray-100"
-                >{u.tipoDocumento}</td
-              >
-              <td class="px-4 py-3 border-b border-gray-100">{u.documento}</td>
-              <td class="px-4 py-3 border-b border-gray-100">{u.telefono}</td>
-              <td class="px-4 py-3 border-b border-gray-100">{u.direccion}</td>
-              <td class="px-4 py-3 border-b border-gray-100">{u.sexo}</td>
-              <td class="px-4 py-3 border-b border-gray-100">{u.correo}</td>
-              <td class="px-4 py-3 border-b border-gray-100">{u.perfil}</td>
-
-              <td class="px-5 py-3 border-b border-gray-100 text-center">
-                <button
-                  on:click={() => toggleEstado(u.id)}
-                  class="relative inline-flex items-center h-6 w-11 rounded-full transition-colors duration-300 focus:outline-none"
-                  class:bg-green-500={u.estado === "Activo"}
-                  class:bg-gray-400={u.estado !== "Activo"}
-                >
-                  <span
-                    class="inline-block w-5 h-5 transform bg-white rounded-full shadow transition-transform duration-300"
-                    class:translate-x-5={u.estado === "Activo"}
-                    class:translate-x-1={u.estado !== "Activo"}
-                  ></span>
-                </button>
-              </td>
-
-              <!-- Acciones -->
-              <td class="px-4 py-3 border-b border-gray-100 text-center">
-                <div class="inline-flex items-center gap-3">
-                  <button
-                    title="Editar"
-                    class="text-blue-600 hover:text-blue-800 transition"
-                    on:click={() => editarUsuario(u.id)}
-                  >
-                    <i class="bi bi-pencil-square"></i>
-                  </button>
-                </div>
-              </td>
-            </tr>
-          {/each}
-        {/if}
-      </tbody>
-    </table>
-  </div>
+    <option value="Todos">Todos los estados</option>
+    <option value="Activo">Activo</option>
+    <option value="Inactivo">Inactivo</option>
+  </select>
 </div>
 
+{#if loading}
+  <p>Cargando usuarios...</p>
+{:else if errorMessage}
+  <p class="text-red-500">{errorMessage}</p>
+{:else}
+  <div
+    class="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden mt-4"
+  >
+    <div
+      class="overflow-x-auto max-w-[calc(150vw-18rem)] scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100"
+    >
+      <table class="min-w-[1200px] table-auto w-full text-sm">
+        <thead
+          class="bg-[#e7e7d3] text-gray-700 text-sm font-semibold tracking-wide uppercase"
+        >
+          <tr>
+            <th
+              class="text-left px-4 py-3 border-b border-gray-200 cursor-pointer"
+              on:click={() => toggleSort("id")}
+            >
+              <div class="flex items-center gap-1.5">
+                <span>ID</span>
+                {#if sortColumn === "id"}
+                  <i
+                    class={"bi text-[0.8rem] " +
+                      (sortDirection === "asc"
+                        ? "bi-arrow-up"
+                        : "bi-arrow-down") +
+                      " text-blue-500"}
+                  ></i>
+                {/if}
+              </div></th
+            >
+
+            <!-- NOMBRE -->
+            <th
+              class="text-left px-4 py-3 border-b border-gray-200 cursor-pointer"
+              on:click={() => toggleSort("nombre")}
+            >
+              <div class="flex items-center gap-1.5">
+                <span>Nombre</span>
+                {#if sortColumn === "nombre"}
+                  <i
+                    class={"bi text-[0.8rem] " +
+                      (sortDirection === "asc"
+                        ? "bi-arrow-up"
+                        : "bi-arrow-down") +
+                      " text-blue-500"}
+                  ></i>
+                {/if}
+              </div>
+            </th>
+
+            <!-- APELLIDO -->
+            <th
+              class="text-left px-4 py-3 border-b border-gray-200 cursor-pointer"
+              on:click={() => toggleSort("apellido")}
+            >
+              <div class="flex items-center gap-1.5">
+                <span>Apellido</span>
+                {#if sortColumn === "apellido"}
+                  <i
+                    class={"bi text-[0.8rem] " +
+                      (sortDirection === "asc"
+                        ? "bi-arrow-up"
+                        : "bi-arrow-down") +
+                      " text-blue-500"}
+                  ></i>
+                {/if}
+              </div>
+            </th>
+
+            <!-- TIPO DOCUMENTO -->
+            <th class="text-left px-4 py-3 border-b border-gray-200"
+              >TipoDoc
+            </th>
+
+            <!-- DOCUMENTO -->
+            <th
+              class="text-left px-4 py-3 border-b border-gray-200 cursor-pointer"
+              on:click={() => toggleSort("documento")}
+            >
+              <div class="flex items-center gap-1.5">
+                <span>N° Documento</span>
+                {#if sortColumn === "documento"}
+                  <i
+                    class={"bi text-[0.8rem] " +
+                      (sortDirection === "asc"
+                        ? "bi-arrow-up"
+                        : "bi-arrow-down") +
+                      " text-blue-500"}
+                  ></i>
+                {/if}
+              </div>
+            </th>
+
+            <!-- TELÉFONO -->
+            <th class="text-left px-4 py-3 border-b border-gray-200"
+              >Teléfono
+            </th>
+
+            <!-- DIRECCIÓN -->
+            <th class="text-left px-4 py-3 border-b border-gray-200"
+              >Dirección
+            </th>
+
+            <!-- SEXO -->
+            <th class="text-left px-4 py-3 border-b border-gray-200">Sexo </th>
+
+            <!-- CORREO -->
+            <th
+              class="text-left px-4 py-3 border-b border-gray-200 cursor-pointer"
+              on:click={() => toggleSort("correo")}
+            >
+              <div class="flex items-center gap-1.5">
+                <span>Correo</span>
+                {#if sortColumn === "correo"}
+                  <i
+                    class={"bi text-[0.8rem] " +
+                      (sortDirection === "asc"
+                        ? "bi-arrow-up"
+                        : "bi-arrow-down") +
+                      " text-blue-500"}
+                  ></i>
+                {/if}
+              </div>
+            </th>
+
+            <!-- PERFIL -->
+            <th
+              class="text-left px-4 py-3 border-b border-gray-200 cursor-pointer"
+              on:click={() => toggleSort("perfil")}
+            >
+              <div class="flex items-center gap-1.5">
+                <span>Perfil</span>
+                {#if sortColumn === "perfil"}
+                  <i
+                    class={"bi text-[0.8rem] " +
+                      (sortDirection === "asc"
+                        ? "bi-arrow-up"
+                        : "bi-arrow-down") +
+                      " text-blue-500"}
+                  ></i>
+                {/if}
+              </div>
+            </th>
+
+            <!-- ESTADO -->
+            <th class="text-left px-4 py-3 border-b border-gray-200"
+              >Estado
+            </th>
+
+            <!-- ACCIONES -->
+            <th class="text-center px-4 py-3 border-b border-gray-200"
+              >Acciones</th
+            >
+          </tr>
+        </thead>
+        <tbody>
+          {#if displayed.length === 0}
+            <tr>
+              <td colspan="13" class="px-4 py-6 text-center text-gray-500">
+                No se encontraron resultados
+              </td>
+            </tr>
+          {:else}
+            {#each displayed as u (u.id)}
+              <tr
+                class="even:bg-white odd:bg-gray-50 hover:bg-gray-100 transition"
+              >
+                <td class="px-4 py-3 border-b border-gray-100">{u.id}</td>
+                <td class="px-4 py-3 border-b border-gray-100">{u.nombre}</td>
+                <td class="px-4 py-3 border-b border-gray-100">{u.apellido}</td>
+                <td class="px-4 py-3 border-b border-gray-100"
+                  >{u.tipoDocumento}</td
+                >
+                <td class="px-4 py-3 border-b border-gray-100">{u.documento}</td
+                >
+                <td class="px-4 py-3 border-b border-gray-100">{u.telefono}</td>
+                <td class="px-4 py-3 border-b border-gray-100">{u.direccion}</td
+                >
+                <td class="px-4 py-3 border-b border-gray-100">{u.sexo}</td>
+                <td class="px-4 py-3 border-b border-gray-100">{u.correo}</td>
+                <td class="px-4 py-3 border-b border-gray-100">{u.perfil}</td>
+
+                <td class="px-5 py-3 border-b border-gray-100 text-center">
+                  <button
+                    on:click={() => toggleEstado(u.id)}
+                    class="relative inline-flex items-center h-6 w-11 rounded-full transition-colors duration-300 focus:outline-none"
+                    class:bg-green-500={u.estado === "Activo"}
+                    class:bg-gray-400={u.estado !== "Activo"}
+                  >
+                    <span
+                      class="inline-block w-5 h-5 transform bg-white rounded-full shadow transition-transform duration-300"
+                      class:translate-x-5={u.estado === "Activo"}
+                      class:translate-x-1={u.estado !== "Activo"}
+                    ></span>
+                  </button>
+                </td>
+
+                <!-- Acciones -->
+                <td class="px-4 py-3 border-b border-gray-100 text-center">
+                  <div class="inline-flex items-center gap-3">
+                    <button
+                      title="Editar"
+                      class="text-blue-600 hover:text-blue-800 transition"
+                      on:click={() => editarUsuario(u.id)}
+                    >
+                      <i class="bi bi-pencil-square"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            {/each}
+          {/if}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{/if}
+
 {#if mostrarModal}
-  <Crearuser visible={mostrarModal} onClose={() => (mostrarModal = false)} />
+  <Crearuser
+    visible={mostrarModal}
+    onClose={() => (mostrarModal = false)}
+    on:save={async () => {
+      mostrarModal = false;
+      try {
+        loading = true;
+        const rawUsuarios = await fetchUsuarios();
+        usuarios = rawUsuarios
+          .filter((u: any) => u.id_usuario !== undefined && u.id_usuario !== null)
+          .map((u: any) => ({
+            id: u.id_usuario,
+            nombre: u.nombre,
+            apellido: u.apellido,
+            tipoDocumento: u.tipo_documento,
+            documento: u.numero_documento,
+            correo: u.email,
+            telefono: u.telefono,
+            direccion: u.direccion,
+            sexo: u.sexo,
+            perfil: roles[u.id_rol] || "Desconocido",
+            estado: u.estado === 1 ? "Activo" : "Inactivo"
+          }));
+      } catch (err) {
+        console.error("Error al actualizar usuarios:", err);
+      } finally {
+        loading = false;
+      }
+    }}
+  />
 {/if}
 
 {#if usuarioEditando}

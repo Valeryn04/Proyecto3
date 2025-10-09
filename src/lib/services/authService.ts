@@ -1,54 +1,22 @@
-import { authStore } from "$lib/stores/auth";
+const rawUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
+const API_URL = rawUrl.replace(/\/+$/, ""); // quita slashes al final
 
-export async function login(email: string, password: string) {
-  // Validaciones básicas de correo y contraseña
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    console.error("❌ Correo inválido");
-    return false;
-  }
-
-  if (!password || password.length < 8 || !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-    console.error("❌ Contraseña inválida");
-    return false;
-  }
-
-  // 🔹 Simulación de usuarios permitidos
-  if (email === "admin@clinica.com" && password === "Admin@1234") {
-    const fakeToken = "fake-jwt-admin-123456";
-    authStore.set({
-      token: fakeToken,
-      isAuthenticated: true,
-      role: "admin",
+export async function login(usuario: string, contrasena: string) {
+  try {
+    const response = await fetch(`${API_URL}/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usuario, contrasena }),
     });
-    localStorage.setItem("token", fakeToken);
-    localStorage.setItem("role", "admin");
-    console.log("✅ Sesión iniciada como ADMIN");
-    return true;
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Error en login: ${errorText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error en authService:", error);
+    throw error;
   }
-
-  if (email === "medico@clinica.com" && password === "Medico@1234") {
-    const fakeToken = "fake-jwt-medico-123456";
-    authStore.set({
-      token: fakeToken,
-      isAuthenticated: true,
-      role: "medico",
-    });
-    localStorage.setItem("token", fakeToken);
-    localStorage.setItem("role", "medico");
-    console.log("✅ Sesión iniciada como MÉDICO");
-    return true;
-  }
-
-  console.error("❌ Credenciales incorrectas");
-  return false;
-}
-
-export function logout() {
-  authStore.set({
-    token: null,
-    isAuthenticated: false,
-    role: null,
-  });
-  localStorage.removeItem("token");
-  localStorage.removeItem("role");
 }
