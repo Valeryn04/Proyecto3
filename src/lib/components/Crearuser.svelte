@@ -1,16 +1,30 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import { crearUsuario } from "../services/userService"; // 👈 importa el servicio
+  import { crearUsuarioConAtributos, fetchRoles, fetchAtributos } from "../services/userService";
   import { onMount } from "svelte";
-
-  export let visible: boolean;
-  export let onClose: () => void;
 
   const dispatch = createEventDispatcher();
 
-  let cargando = false;
+  interface Atributo {
+    id_atributo: number;
+    valor: string;
+  }
 
-  // Datos del formulario
+  interface AtributoDisponible {
+    id_atributo: number;
+    nombre: string;
+    descripcion: string;
+    create_date: string;
+    update_date: string;
+  }
+
+  export let visible: boolean;
+  export let onClose: () => void;
+  
+  let cargando = false;
+  let roles: { id_rol: number; nombre_rol: string }[] = [];
+  let atributosDisponibles: AtributoDisponible[] = [];
+ 
   let formData = {
     usuario: "",
     contrasena: "",
@@ -25,65 +39,82 @@
     direccion: "",
     id_rol: "",
     estado: true,
+    atributos: [] as Atributo[],
   };
 
-  // Errores de validación
   let errores: Record<string, string> = {};
 
-  function cerrarModal() {
-    formData = {
-      usuario: "",
-      contrasena: "",
-      nombre: "",
-      apellido: "",
-      email: "",
-      tipo_documento: "",
-      numero_documento: "",
-      fecha_nacimiento: "",
-      sexo: "",
-      telefono: "",
-      direccion: "",
-      id_rol: "",
-      estado: true,
-    };
-    errores = {};
-    onClose();
+  onMount(async () => {
+    try {
+      roles = await fetchRoles();
+      atributosDisponibles = await fetchAtributos();
+      console.log("✅ Atributos cargados:", atributosDisponibles);
+    } catch (error) {
+      console.error("❌ Error cargando roles o atributos:", error);
+    }
+  });
+
+  // Agregar un nuevo atributo dinámicamente
+  function agregarAtributo() {
+    formData.atributos = [...formData.atributos, { id_atributo:0 , valor: "" }];
   }
 
+  // Eliminar un atributo de la lista
+  function eliminarAtributo(index: number) {
+    formData.atributos = formData.atributos.filter((_, i) => i !== index);
+  }
+
+function getNombreAtributo(id: number): string {
+  const attr = atributosDisponibles.find(a => a.id_atributo === id); // Asegurarse que se compara con número
+  return attr ? attr.nombre : "";
+}
+
+ function formatearNombreAtributo(nombre: string): string {
+  return nombre
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+  // Validar el formulario
   function validarFormulario() {
     errores = {};
-
-    if (!formData.usuario.trim())
-      errores.usuario = "El nombre de usuario es obligatorio.";
-    if (!formData.contrasena || formData.contrasena.length < 8)
-      errores.contrasena = "La contraseña debe tener al menos 8 caracteres.";
-    else if (!/[!@#$%^&*(),.?":{}|<>]/.test(formData.contrasena))
-      errores.contrasena = "Debe incluir un símbolo especial.";
-
+    if (!formData.usuario.trim()) errores.usuario = "El nombre de usuario es obligatorio.";
+    if (!formData.contrasena || formData.contrasena.length < 8) errores.contrasena = "La contraseña debe tener al menos 8 caracteres.";
     if (!formData.nombre.trim()) errores.nombre = "El nombre es obligatorio.";
-    if (!formData.apellido.trim())
-      errores.apellido = "El apellido es obligatorio.";
-    if (!formData.email.trim() || !formData.email.includes("@"))
-      errores.email = "Correo electrónico inválido.";
-    if (!formData.tipo_documento)
-      errores.tipo_documento = "Seleccione un tipo de documento.";
-    if (!formData.numero_documento.trim())
-      errores.numero_documento = "Número de documento requerido.";
-    if (!formData.fecha_nacimiento.trim())
-      errores.fecha_nacimiento = "Seleccione una fecha de nacimiento.";
+    if (!formData.apellido.trim()) errores.apellido = "El apellido es obligatorio.";
+    if (!formData.email.trim() || !formData.email.includes("@")) errores.email = "Correo electrónico inválido.";
+    if (!formData.tipo_documento) errores.tipo_documento = "Seleccione un tipo de documento.";
+    if (!formData.numero_documento.trim()) errores.numero_documento = "Número de documento requerido.";
+    if (!formData.fecha_nacimiento.trim()) errores.fecha_nacimiento = "Seleccione una fecha de nacimiento.";
     if (!formData.sexo) errores.sexo = "Seleccione el sexo.";
-    if (!formData.telefono.trim())
-      errores.telefono = "El teléfono es obligatorio.";
-    if (!formData.direccion.trim())
-      errores.direccion = "La dirección es obligatoria.";
+    if (!formData.telefono.trim()) errores.telefono = "El teléfono es obligatorio.";
+    if (!formData.direccion.trim()) errores.direccion = "La dirección es obligatoria.";
     if (!formData.id_rol) errores.id_rol = "Seleccione un rol.";
-
+    
+    // Validar atributos si hay alguno agregado
+formData.atributos.forEach((attr, index) => {
+  if (!attr.id_atributo || !attr.valor.trim()) {
+    errores[`atributo_${index}`] = "El valor del atributo es obligatorio.";
+  }
+    });
+    
     return Object.keys(errores).length === 0;
   }
 
+  // Función para guardar el usuario
   async function guardarUsuario() {
     if (!validarFormulario()) return;
     cargando = true;
+
+    // Filtrar solo los atributos que tienen ID y valor
+    const atributosFiltrados = formData.atributos
+   .filter(attr => attr.id_atributo && attr.valor.trim())
+   .map(attr => ({
+     id_atributo: Number(attr.id_atributo), // Convertir a número
+     valor: attr.valor.trim()
+   }));
+
 
     const usuarioPayload = {
       usuario: formData.usuario,
@@ -99,12 +130,13 @@
       direccion: formData.direccion,
       estado: formData.estado,
       id_rol: parseInt(formData.id_rol),
+      atributos: atributosFiltrados,
     };
 
     console.log("📦 Enviando usuario al backend:", usuarioPayload);
 
     try {
-      const respuesta = await crearUsuario(usuarioPayload);
+      const respuesta = await crearUsuarioConAtributos(usuarioPayload);
       console.log("✅ Usuario creado:", respuesta);
 
       alert("Usuario creado exitosamente ✅");
@@ -129,6 +161,27 @@
     if (formData.numero_documento.trim()) {
       formData.contrasena = formData.numero_documento + "!";
     }
+  }
+
+  function cerrarModal() {
+    formData = {
+      usuario: "",
+      contrasena: "",
+      nombre: "",
+      apellido: "",
+      email: "",
+      tipo_documento: "",
+      numero_documento: "",
+      fecha_nacimiento: "",
+      sexo: "",
+      telefono: "",
+      direccion: "",
+      id_rol: "",
+      estado: true,
+      atributos: [],
+    };
+    errores = {};
+    onClose();
   }
 </script>
 
@@ -165,9 +218,7 @@
 
         <!-- Contraseña -->
         <div class="sm:col-span-2">
-          <label class="block text-sm font-medium text-gray-700"
-            >Contraseña</label
-          >
+          <label class="block text-sm font-medium text-gray-700">Contraseña</label>
           <div class="flex gap-2">
             <input
               bind:value={formData.contrasena}
@@ -204,8 +255,7 @@
 
         <!-- Apellido -->
         <div>
-          <label class="block text-sm font-medium text-gray-700">Apellido</label
-          >
+          <label class="block text-sm font-medium text-gray-700">Apellido</label>
           <input
             bind:value={formData.apellido}
             type="text"
@@ -219,9 +269,7 @@
 
         <!-- Email -->
         <div class="sm:col-span-2">
-          <label class="block text-sm font-medium text-gray-700"
-            >Correo electrónico</label
-          >
+          <label class="block text-sm font-medium text-gray-700">Correo electrónico</label>
           <input
             bind:value={formData.email}
             type="email"
@@ -235,9 +283,7 @@
 
         <!-- Tipo documento -->
         <div>
-          <label class="block text-sm font-medium text-gray-700"
-            >Tipo Documento</label
-          >
+          <label class="block text-sm font-medium text-gray-700">Tipo Documento</label>
           <select
             bind:value={formData.tipo_documento}
             class="w-full border border-gray-300 rounded-md p-2 mt-1"
@@ -255,9 +301,7 @@
 
         <!-- Documento -->
         <div>
-          <label class="block text-sm font-medium text-gray-700"
-            >Número Documento</label
-          >
+          <label class="block text-sm font-medium text-gray-700">Número Documento</label>
           <input
             bind:value={formData.numero_documento}
             type="text"
@@ -271,9 +315,7 @@
 
         <!-- Fecha -->
         <div>
-          <label class="block text-sm font-medium text-gray-700"
-            >Fecha Nacimiento</label
-          >
+          <label class="block text-sm font-medium text-gray-700">Fecha Nacimiento</label>
           <input
             bind:value={formData.fecha_nacimiento}
             type="date"
@@ -303,8 +345,7 @@
 
         <!-- Teléfono -->
         <div>
-          <label class="block text-sm font-medium text-gray-700">Teléfono</label
-          >
+          <label class="block text-sm font-medium text-gray-700">Teléfono</label>
           <input
             bind:value={formData.telefono}
             type="tel"
@@ -318,9 +359,7 @@
 
         <!-- Dirección -->
         <div>
-          <label class="block text-sm font-medium text-gray-700"
-            >Dirección</label
-          >
+          <label class="block text-sm font-medium text-gray-700">Dirección</label>
           <input
             bind:value={formData.direccion}
             type="text"
@@ -334,16 +373,15 @@
 
         <!-- Rol -->
         <div>
-          <label class="block text-sm font-medium text-gray-700"
-            >Rol / Perfil</label
-          >
+          <label class="block text-sm font-medium text-gray-700">Rol / Perfil</label>
           <select
             bind:value={formData.id_rol}
             class="w-full border border-gray-300 rounded-md p-2 mt-1"
           >
-            <option value="">Seleccione</option>
-            <option value="1">Administrador</option>
-            <option value="2">Asistente</option>
+            <option value="">Seleccione un rol</option>
+            {#each roles as rol}
+              <option value={rol.id_rol}>{rol.nombre_rol}</option>
+            {/each}
           </select>
           {#if errores.id_rol}
             <p class="text-red-500 text-sm mt-1">{errores.id_rol}</p>
@@ -362,6 +400,77 @@
           </select>
         </div>
 
+        <!-- Sección de Atributos Dinámicos -->
+        <div class="sm:col-span-2 mt-4">
+          <div class="flex items-center justify-between mb-3">
+            <label class="block text-sm font-medium text-gray-700">
+              Atributos Personalizados
+            </label>
+            <button
+              type="button"
+              on:click={agregarAtributo}
+              class="px-3 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 flex items-center gap-1"
+            >
+              <i class="bi bi-plus-lg"></i>
+              Agregar Atributo
+            </button>
+          </div>
+
+          {#if formData.atributos.length === 0}
+            <p class="text-gray-500 text-sm italic">
+              No hay atributos agregados. Haz clic en "Agregar Atributo" para añadir uno.
+            </p>
+          {:else}
+            <div class="space-y-3">
+              {#each formData.atributos as atributo, index (index)}
+                <div class="flex gap-2 items-start border border-gray-200 rounded-md p-3 bg-gray-50">
+                  <div class="flex-1">
+                    <label class="block text-xs font-medium text-gray-600 mb-1">
+                      Seleccionar Atributo
+                    </label>
+                    <select
+                      bind:value={atributo.id_atributo}
+                      class="w-full border border-gray-300 rounded-md p-2 text-sm"
+                    >
+                      <option value="">-- Seleccione un atributo --</option>
+                      {#each atributosDisponibles as attr}
+                        <option value={attr.id_atributo} title={attr.descripcion}>
+                          {formatearNombreAtributo(attr.nombre)}
+                        </option>
+                      {/each}
+                    </select>
+                  </div>
+
+                  <div class="flex-1">
+                    <label class="block text-xs font-medium text-gray-600 mb-1">
+                      Valor
+                    </label>
+                    <input
+                      bind:value={atributo.valor}
+                      type="text"
+                      placeholder="Ingrese el valor"
+                      disabled={!atributo.id_atributo}
+                      class="w-full border border-gray-300 rounded-md p-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    />
+                    {#if errores[`atributo_${index}`]}
+                      <p class="text-red-500 text-xs mt-1">{errores[`atributo_${index}`]}</p>
+                    {/if}
+                  </div>
+
+                  <button
+                    type="button"
+                    on:click={() => eliminarAtributo(index)}
+                    class="mt-6 px-2 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+                    title="Eliminar atributo"
+                  >
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
+
         <!-- Botones -->
         <div class="col-span-2 flex justify-end mt-4 gap-3">
           <button
@@ -376,12 +485,7 @@
             class="px-5 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700"
             disabled={cargando}
           >
-            {#if cargando}
-              Guardando...
-            {/if}
-            {#if !cargando}
-              Guardar Usuario
-            {/if}
+            {cargando ? "Guardando..." : "Guardar Usuario"}
           </button>
         </div>
       </form>

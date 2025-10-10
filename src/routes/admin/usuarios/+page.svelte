@@ -3,7 +3,16 @@
   import "bootstrap-icons/font/bootstrap-icons.css";
   import Crearuser from "$lib/components/Crearuser.svelte";
   import Editaruser from "$lib/components/Editaruser.svelte";
-  import { fetchUsuarios } from "$lib/services/userService";
+  import {
+    fetchUsuarios,
+    fetchRoles,
+    cambiarEstadoUsuario,
+  } from "$lib/services/userService";
+
+  type Rol = {
+    id_rol: number;
+    nombre_rol: string;
+  };
 
   type Usuario = {
     id: number;
@@ -19,52 +28,60 @@
     estado: string;
   };
 
-    const roles: Record<number, string> = {
-    1: "Administrador",
-    2: "Médico",
-    3: "Paciente", // Agrega más roles según los necesites
-  };
-
   let sortColumn: keyof Usuario = "id";
   let sortDirection: "asc" | "desc" = "asc";
   let search = "";
   let estadoFiltro = "Todos";
 
   let usuarios: Usuario[] = [];
+  let roles: Rol[] = [];
   let loading = true;
   let errorMessage = "";
 
- onMount(async () => {
+  onMount(async () => {
     try {
       loading = true;
       errorMessage = "";
-      const rawUsuarios = await fetchUsuarios();
 
-      // Debug para usuarios sin id_usuario
+      // ✅ Cargar roles y usuarios al mismo tiempo
+      const [rawUsuarios, rawRoles] = await Promise.all([
+        fetchUsuarios(),
+        fetchRoles(),
+      ]);
+
+      roles = rawRoles; // Guardar roles disponibles
+
+      // Depuración
       rawUsuarios.forEach((u: any) => {
         if (u.id_usuario === undefined || u.id_usuario === null) {
           console.warn("Usuario sin id_usuario detectado:", u);
         }
       });
 
+      // ✅ Convertir datos de API → formato tabla
       usuarios = rawUsuarios
         .filter((u: any) => u.id_usuario !== undefined && u.id_usuario !== null)
-        .map((u: any) => ({
-          id: u.id_usuario,
-          nombre: u.nombre,
-          apellido: u.apellido,
-          tipoDocumento: u.tipo_documento,
-          documento: u.numero_documento,
-          correo: u.email,
-          telefono: u.telefono,
-          direccion: u.direccion,
-          sexo: u.sexo,
-          perfil: roles[u.id_rol] || "Desconocido", // Asignar rol usando el id_rol
-          estado: u.estado === 1 ? "Activo" : "Inactivo"
-        }));
+        .map((u: any) => {
+          const rol =
+            roles.find((r) => r.id_rol === u.id_rol)?.nombre_rol ||
+            "Desconocido";
+          return {
+            id: u.id_usuario,
+            nombre: u.nombre,
+            apellido: u.apellido,
+            tipoDocumento: u.tipo_documento,
+            documento: u.numero_documento,
+            correo: u.email,
+            telefono: u.telefono,
+            direccion: u.direccion,
+            sexo: u.sexo,
+            perfil: rol, // ✅ Aquí usamos el nombre del rol
+            estado: u.estado === 1 || u.estado === true ? "Activo" : "Inactivo",
+          };
+        });
     } catch (error) {
       console.error(error);
-      errorMessage = "Error al cargar usuarios.";
+      errorMessage = "Error al cargar usuarios o roles.";
     } finally {
       loading = false;
     }
@@ -139,12 +156,30 @@
     return sorted;
   }
 
-  function toggleEstado(id: number) {
-    usuarios = usuarios.map((u: Usuario) =>
-      u.id === id
-        ? { ...u, estado: u.estado === "Activo" ? "Inactivo" : "Activo" }
-        : u
-    );
+  async function toggleEstado(id: number) {
+    const usuario = usuarios.find((u) => u.id === id);
+    if (!usuario) return;
+
+    // Determina el nuevo estado
+    const nuevoEstado = usuario.estado === "Activo" ? false : true;
+
+    try {
+      // 🔄 Llamar servicio backend
+      await cambiarEstadoUsuario(id, nuevoEstado);
+
+      // ✅ Actualizar en UI
+      usuarios = usuarios.map((u) =>
+        u.id === id ? { ...u, estado: nuevoEstado ? "Activo" : "Inactivo" } : u
+      );
+
+      console.log(
+        `✅ Estado de usuario ${id} cambiado a`,
+        nuevoEstado ? "Activo" : "Inactivo"
+      );
+    } catch (error) {
+      console.error("❌ Error al cambiar estado:", error);
+      alert("Error al cambiar estado del usuario.");
+    }
   }
 </script>
 
@@ -155,7 +190,7 @@
          bg-[#da8780] hover:bg-[#c86c66] text-white"
     on:click={crearUsuario}
   >
-    <i class="bi bi-plus-lg"></i>
+    <i class="bi bi-plus-lg pr-2"></i>
     Crear usuario
   </button>
 </div>
@@ -411,20 +446,27 @@
         loading = true;
         const rawUsuarios = await fetchUsuarios();
         usuarios = rawUsuarios
-          .filter((u: any) => u.id_usuario !== undefined && u.id_usuario !== null)
-          .map((u: any) => ({
-            id: u.id_usuario,
-            nombre: u.nombre,
-            apellido: u.apellido,
-            tipoDocumento: u.tipo_documento,
-            documento: u.numero_documento,
-            correo: u.email,
-            telefono: u.telefono,
-            direccion: u.direccion,
-            sexo: u.sexo,
-            perfil: roles[u.id_rol] || "Desconocido",
-            estado: u.estado === 1 ? "Activo" : "Inactivo"
-          }));
+          .filter(
+            (u: any) => u.id_usuario !== undefined && u.id_usuario !== null
+          )
+          .map((u: any) => {
+            const rol =
+              roles.find((r) => r.id_rol === u.id_rol)?.nombre_rol ||
+              "Desconocido";
+            return {
+              id: u.id_usuario,
+              nombre: u.nombre,
+              apellido: u.apellido,
+              tipoDocumento: u.tipo_documento,
+              documento: u.numero_documento,
+              correo: u.email,
+              telefono: u.telefono,
+              direccion: u.direccion,
+              sexo: u.sexo,
+              perfil: rol,
+              estado: u.estado === 1 ? "Activo" : "Inactivo",
+            };
+          });
       } catch (err) {
         console.error("Error al actualizar usuarios:", err);
       } finally {

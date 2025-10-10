@@ -75,13 +75,17 @@
             goto("/admin");
             break;
           case 2:
-            goto("/medico");
+            goto("/admin");
             break;
           case 3:
-            goto("/paciente");
+            goto("/medico");
             break;
+          case 4:
+            goto("/paciente");
           default:
-            Swal.fire("Acceso denegado", "Tu rol no tiene acceso todavía.", "warning");
+            Swal.fire("Acceso denegado", 
+            "Tu rol no tiene acceso todavía.", 
+            "warning");
         }
       }, 1500);
 
@@ -91,6 +95,8 @@
       loading = false;
     }
   }
+
+  
 </script>
 
 <div
