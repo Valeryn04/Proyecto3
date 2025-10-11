@@ -7,7 +7,6 @@
     fetchAtributosUsuario,
     fetchPerfilCompleto,
   } from "../services/userService";
-  
 
   const dispatch = createEventDispatcher();
 
@@ -76,12 +75,16 @@
       roles = rolesData || [];
       atributosDisponibles = atributosData || [];
 
-      // 🔹 Traer perfil completo del usuario (incluye nombre_rol si el backend lo devuelve)
+      // 🔹 Traer perfil completo y atributos del usuario
       const perfil = await fetchPerfilCompleto(usuario.id);
       const atributosDelUsuario = await fetchAtributosUsuario(usuario.id);
 
       const u = perfil?.usuario || usuario;
 
+      // 🔹 Buscar el rol actual en la lista de roles (por id_rol)
+      const rolActual = roles.find(
+        (r) => r.id_rol === (usuario.id_rol ?? u.id_rol)
+      );
       // 🔹 Rellenar datos del formulario
       formData = {
         id: usuario.id,
@@ -94,7 +97,7 @@
         sexo: usuario.sexo || "",
         telefono: usuario.telefono || "",
         direccion: usuario.direccion || "",
-        id_rol: usuario.id_rol ? String(usuario.id_rol) : "",
+        id_rol: rolActual ? String(rolActual.id_rol) : "",
         estado: usuario.estado === "Activo" || usuario.estado === true,
         atributos: atributosDelUsuario,
       };
@@ -185,7 +188,10 @@
           })),
       };
 
-      const resultado = await actualizarUsuario(formData.id, datosActualizacion);
+      const resultado = await actualizarUsuario(
+        formData.id,
+        datosActualizacion
+      );
 
       alert("Usuario actualizado exitosamente ✅");
       onSave(resultado);
@@ -385,7 +391,9 @@
 
           <!-- Rol -->
           <div>
-            <label class="block text-sm font-medium text-gray-700">Rol / Perfil</label>
+            <label class="block text-sm font-medium text-gray-700"
+              >Rol / Perfil</label
+            >
             <select
               bind:value={formData.id_rol}
               class="w-full border border-gray-300 rounded-md p-2 mt-1"
@@ -394,7 +402,7 @@
                 <option value="">Seleccione un rol</option>
               {/if}
               {#each roles as rol}
-                <option value={rol.id_rol.toString()} selected={rol.id_rol.toString() === formData.id_rol}>
+                <option value={rol.id_rol.toString()}>
                   {rol.nombre_rol}
                 </option>
               {/each}
