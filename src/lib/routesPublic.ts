@@ -1,1 +1,1 @@
-export const publicRoutes = ["/", "/forgot-password"];
+export const publicRoutes = ["/", "/forgot-password","/miperfil"];

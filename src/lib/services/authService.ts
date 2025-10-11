@@ -1,7 +1,13 @@
 const rawUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
-const API_URL = rawUrl.replace(/\/+$/, "");
+const API_URL = rawUrl.replace(/\/+$/, ""); // quita barras finales duplicadas
 
-export async function login(usuario: string, contrasena: string) {
+/**
+ * Realiza la autenticación del usuario contra la API.
+ * @param usuario Nombre de usuario o email.
+ * @param contrasena Contraseña.
+ * @returns Un objeto con el token si es exitoso.
+ */
+export async function login(usuario: string, contrasena: string): Promise<{ access_token: string }> {
   try {
     const response = await fetch(`${API_URL}/login`, {
       method: "POST",
@@ -12,35 +18,39 @@ export async function login(usuario: string, contrasena: string) {
     if (!response.ok) {
       let errorMsg = "";
 
-      try{
+      try {
         const errorData = await response.json();
         errorMsg =
-        errorData.detail ||
-        errorData.message ||
-        `Error ${response.status}: ${response.statusText}`;
+          errorData.detail ||
+          errorData.message ||
+          `Error ${response.status}: ${response.statusText}`;
       } catch {
         const errorText = await response.text();
-        errorMsg = errorText ||  `Error ${response.status}: ${response.statusText}`;
+        errorMsg = errorText || `Error ${response.status}: ${response.statusText}`;
       }
 
-       // Mensajes personalizados
-      if (response.status === 401) throw new Error("Contraseña incorrecta");
-      if (response.status === 403) throw new Error("Usuario inactivo");
-      if (response.status === 404) throw new Error("Usuario no encontrado");
-      
-      throw new Error(errorMsg);
-
+      // Errores personalizados por status
+      switch (response.status) {
+        case 401:
+          throw new Error("Contraseña incorrecta");
+        case 403:
+          throw new Error("Usuario inactivo");
+        case 404:
+          throw new Error("Usuario no encontrado");
+        default:
+          throw new Error(errorMsg);
+      }
     }
 
     const data = await response.json();
 
-    if (!data.access_token) {
-      throw new Error("El servidor no devolvio un token valido");
+    if (!data.access_token || typeof data.access_token !== "string") {
+      throw new Error("El servidor no devolvió un token válido");
     }
 
-    return data;
+    return { access_token: data.access_token };
   } catch (error: any) {
-    console.error("Error en authService:", error);
+    console.error("❌ Error en authService:", error);
     throw new Error(error.message || "Error al iniciar sesión");
   }
 }

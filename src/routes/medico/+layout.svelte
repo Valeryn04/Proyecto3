@@ -18,7 +18,7 @@
     if (
       !currentSession.loggedIn ||
       !currentSession.payload ||
-      currentSession.payload.rol !== 2
+      currentSession.payload.rol !== 4
     ) {
       goto("/unauthorized");
       return;

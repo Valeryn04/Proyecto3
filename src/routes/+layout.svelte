@@ -7,6 +7,7 @@
   import { publicRoutes } from "$lib/routesPublic";
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
+  
 
   let currentRole: number | null = null;
   let token: string | null = null;
