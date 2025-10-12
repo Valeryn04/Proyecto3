@@ -11,23 +11,35 @@
     SidebarMenuItem,
   } from "$lib/components/ui/sidebar";
   import { goto } from "$app/navigation";
+  import { onMount } from "svelte";
+  import { fetchModulosPorRol, getRolFromToken } from "$lib/services/userService"; 
 
-  const items = [
-    { icon: "bi bi-bar-chart-steps", title: "Dashboard", url: "/admin" },
-    { icon: "bi bi-people-fill", title: "Usuarios", url: "/admin/usuarios" },
-    { icon: "bi bi-universal-access", title: "Permisos", url: "/admin/permisos" },
-  ];
+  let items: { icon: string; title: string; url: string }[] = [];
+  const user = { name: "Valeryn Admin", email: "admin@valeryn.com" };
 
-  const user = {
-    name: "Valeryn Admin",
-    email: "admin@valeryn.com",
-  };
+  onMount(async () => {
+    try {
+      const rol = getRolFromToken();
+      if (rol) {
+        const modulos = await fetchModulosPorRol(rol);
+        // 🔧 Ajusta según tu backend
+        items = modulos.map((m: any) => ({
+          icon: m.icono || "bi bi-circle",
+          title: m.nombre_modulo,
+          url: m.url || "#",
+        }));
+      }
+    } catch (error) {
+      console.error("Error al cargar menú:", error);
+    }
+  });
 
   function handleLogout() {
-    goto('/');
+    goto("/");
     console.log("Cerrar sesión");
   }
 </script>
+
 
 <!-- Sidebar -->
 <Sidebar class="border-r border-[#cac4a4] h-full flex flex-col justify-between">

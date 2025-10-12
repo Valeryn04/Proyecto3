@@ -579,3 +579,48 @@ export async function eliminarAtributoUsuario(idUsuarioAtributo: number) {
 
   return await response.json();
 }
+
+
+
+// ==========================================
+// MÓDULOS Y PERMISOS
+// ==========================================
+/**
+ * Obtiene los módulos asignados a un rol (para construir el menú lateral)
+ */
+export async function fetchModulosPorRol(idRol: number) {
+  const token = getToken();
+
+  try {
+    const response = await fetch(`${API_URL}/rol-permisos/modulos-usuario/${idRol}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    // Si la respuesta no es exitosa
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("❌ Error al obtener módulos:", errorText);
+      throw new Error(`Error al obtener módulos (${response.status})`);
+    }
+
+    // Convierte la respuesta en JSON
+    const data = await response.json();
+
+    // Estructura esperada desde el backend: { resultado: [...] }
+    if (Array.isArray(data.resultado)) {
+      console.log("✅ Módulos cargados correctamente:", data.resultado);
+      return data.resultado;
+    } else {
+      console.warn("⚠️ Respuesta inesperada:", data);
+      return [];
+    }
+
+  } catch (error) {
+    console.error("🚨 Error en fetchModulosPorRol:", error);
+    return [];
+  }
+}

@@ -3,11 +3,13 @@
   import "bootstrap-icons/font/bootstrap-icons.css";
   import Crearuser from "$lib/components/Crearuser.svelte";
   import Editaruser from "$lib/components/Editaruser.svelte";
-  import {
-    fetchUsuarios,
-    fetchRoles,
-    cambiarEstadoUsuario,
-  } from "$lib/services/userService";
+  import { fetchUsuarios, fetchRoles, cambiarEstadoUsuario } from "$lib/services/userService";
+  
+  // Asumiendo que 'modulos' es ahora 'permisosStore' o que la carga se hace en otro lado.
+  // Mantenemos la importación original:
+  import { tieneFuncionalidad } from "$lib/stores/modulos";
+  import { get } from "svelte/store";
+
 
   type Rol = {
     id_rol: number;
@@ -24,6 +26,7 @@
     telefono: string;
     direccion: string;
     sexo: string;
+    id_rol: number;
     perfil: string;
     estado: string;
   };
@@ -38,27 +41,36 @@
   let loading = true;
   let errorMessage = "";
 
+  // 🐛 FIX 1: Usar tieneFuncionalidad para 'crear' para mantener la reactividad 
+  // y usar la lógica de verificación de módulo.
+  $: puedeCrearUsuario = tieneFuncionalidad("Usuarios", "crear");
+  $: puedeEditar = tieneFuncionalidad("Usuarios", "actualizar");
+  $: puedeEliminar = tieneFuncionalidad("Usuarios", "eliminar");
+  // 🐛 FIX 2: Usar 'desactivar' que es el permiso específico para cambiar estado (según tu JSON).
+  $: puedeCambiarEstado = tieneFuncionalidad("Usuarios", "desactivar"); 
+
+  console.log("🔐 Permisos en Usuarios:", {
+    puedeCrearUsuario,
+    puedeEditar,
+    puedeEliminar,
+    puedeCambiarEstado,
+  });
+
   onMount(async () => {
     try {
       loading = true;
       errorMessage = "";
 
-      // ✅ Cargar roles y usuarios al mismo tiempo
-      const [rawUsuarios, rawRoles] = await Promise.all([
-        fetchUsuarios(),
-        fetchRoles(),
-      ]);
+      const [rawUsuarios, rawRoles] = await Promise.all([fetchUsuarios(), fetchRoles()]);
 
-      roles = rawRoles; // Guardar roles disponibles
+      roles = rawRoles;
 
-      // Depuración
       rawUsuarios.forEach((u: any) => {
         if (u.id_usuario === undefined || u.id_usuario === null) {
           console.warn("Usuario sin id_usuario detectado:", u);
         }
       });
 
-      // ✅ Convertir datos de API → formato tabla
       usuarios = rawUsuarios
         .filter((u: any) => u.id_usuario !== undefined && u.id_usuario !== null)
         .map((u: any) => {
@@ -75,7 +87,8 @@
             telefono: u.telefono,
             direccion: u.direccion,
             sexo: u.sexo,
-            perfil: rol, // ✅ Aquí usamos el nombre del rol
+            id_rol: u.id_rol,
+            perfil: rol,
             estado: u.estado === 1 || u.estado === true ? "Activo" : "Inactivo",
           };
         });
@@ -117,7 +130,7 @@
   );
 
   function getSortedFiltered(
-    data: Usuario[],
+    data: Usuario[] = [],
     sortColumn: keyof Usuario,
     sortDirection: "asc" | "desc",
     search: string,
@@ -157,17 +170,20 @@
   }
 
   async function toggleEstado(id: number) {
+    if (!puedeCambiarEstado) {
+      // 🐛 FIX 3: Reemplazar alert() por un console.error o una notificación UI.
+      console.error("❌ Acceso Denegado: No tienes permisos para cambiar el estado de usuarios");
+      return;
+    }
+
     const usuario = usuarios.find((u) => u.id === id);
     if (!usuario) return;
 
-    // Determina el nuevo estado
     const nuevoEstado = usuario.estado === "Activo" ? false : true;
 
     try {
-      // 🔄 Llamar servicio backend
       await cambiarEstadoUsuario(id, nuevoEstado);
 
-      // ✅ Actualizar en UI
       usuarios = usuarios.map((u) =>
         u.id === id ? { ...u, estado: nuevoEstado ? "Activo" : "Inactivo" } : u
       );
@@ -178,17 +194,18 @@
       );
     } catch (error) {
       console.error("❌ Error al cambiar estado:", error);
-      alert("Error al cambiar estado del usuario.");
+      // alert("Error al cambiar estado del usuario."); // Evitamos el alert
     }
   }
 </script>
 
 <div class="flex items-center justify-between mb-5">
   <h2 class="text-2xl font-semibold text-black-800">Listado de usuarios</h2>
-  <button
+<button
     class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4
-         bg-[#da8780] hover:bg-[#c86c66] text-white"
+  bg-[#da8780] hover:bg-[#c86c66] text-white"
     on:click={crearUsuario}
+    disabled={!puedeCrearUsuario}
   >
     <i class="bi bi-plus-lg pr-2"></i>
     Crear usuario
@@ -248,8 +265,6 @@
                 {/if}
               </div></th
             >
-
-            <!-- NOMBRE -->
             <th
               class="text-left px-4 py-3 border-b border-gray-200 cursor-pointer"
               on:click={() => toggleSort("nombre")}
@@ -267,8 +282,6 @@
                 {/if}
               </div>
             </th>
-
-            <!-- APELLIDO -->
             <th
               class="text-left px-4 py-3 border-b border-gray-200 cursor-pointer"
               on:click={() => toggleSort("apellido")}
@@ -286,13 +299,8 @@
                 {/if}
               </div>
             </th>
-
-            <!-- TIPO DOCUMENTO -->
-            <th class="text-left px-4 py-3 border-b border-gray-200"
-              >TipoDoc
-            </th>
-
-            <!-- DOCUMENTO -->
+            <th class="text-left px-4 py-3 border-b border-gray-200">TipoDoc</th
+            >
             <th
               class="text-left px-4 py-3 border-b border-gray-200 cursor-pointer"
               on:click={() => toggleSort("documento")}
@@ -310,21 +318,13 @@
                 {/if}
               </div>
             </th>
-
-            <!-- TELÉFONO -->
             <th class="text-left px-4 py-3 border-b border-gray-200"
-              >Teléfono
-            </th>
-
-            <!-- DIRECCIÓN -->
+              >Teléfono</th
+            >
             <th class="text-left px-4 py-3 border-b border-gray-200"
-              >Dirección
-            </th>
-
-            <!-- SEXO -->
-            <th class="text-left px-4 py-3 border-b border-gray-200">Sexo </th>
-
-            <!-- CORREO -->
+              >Dirección</th
+            >
+            <th class="text-left px-4 py-3 border-b border-gray-200">Sexo</th>
             <th
               class="text-left px-4 py-3 border-b border-gray-200 cursor-pointer"
               on:click={() => toggleSort("correo")}
@@ -342,8 +342,6 @@
                 {/if}
               </div>
             </th>
-
-            <!-- PERFIL -->
             <th
               class="text-left px-4 py-3 border-b border-gray-200 cursor-pointer"
               on:click={() => toggleSort("perfil")}
@@ -361,13 +359,7 @@
                 {/if}
               </div>
             </th>
-
-            <!-- ESTADO -->
-            <th class="text-left px-4 py-3 border-b border-gray-200"
-              >Estado
-            </th>
-
-            <!-- ACCIONES -->
+            <th class="text-left px-4 py-3 border-b border-gray-200">Estado</th>
             <th class="text-center px-4 py-3 border-b border-gray-200"
               >Acciones</th
             >
@@ -403,7 +395,8 @@
                 <td class="px-5 py-3 border-b border-gray-100 text-center">
                   <button
                     on:click={() => toggleEstado(u.id)}
-                    class="relative inline-flex items-center h-6 w-11 rounded-full transition-colors duration-300 focus:outline-none"
+                    disabled={!puedeCambiarEstado}
+                    class="relative inline-flex items-center h-6 w-11 rounded-full transition-colors duration-300 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                     class:bg-green-500={u.estado === "Activo"}
                     class:bg-gray-400={u.estado !== "Activo"}
                   >
@@ -414,17 +407,24 @@
                     ></span>
                   </button>
                 </td>
-
-                <!-- Acciones -->
                 <td class="px-4 py-3 border-b border-gray-100 text-center">
                   <div class="inline-flex items-center gap-3">
-                    <button
-                      title="Editar"
-                      class="text-blue-600 hover:text-blue-800 transition"
-                      on:click={() => editarUsuario(u.id)}
-                    >
-                      <i class="bi bi-pencil-square"></i>
-                    </button>
+                    {#if puedeEditar}
+                      <button
+                        title="Editar"
+                        class="text-blue-600 hover:text-blue-800 transition"
+                        on:click={() => editarUsuario(u.id)}
+                      >
+                        <i class="bi bi-pencil-square"></i>
+                      </button>
+                    {:else}
+                      <span
+                        class="text-gray-300"
+                        title="Sin permisos para editar"
+                      >
+                        <i class="bi bi-pencil-square"></i>
+                      </span>
+                    {/if}
                   </div>
                 </td>
               </tr>
@@ -463,6 +463,7 @@
               telefono: u.telefono,
               direccion: u.direccion,
               sexo: u.sexo,
+              id_rol: u.id_rol,
               perfil: rol,
               estado: u.estado === 1 ? "Activo" : "Inactivo",
             };

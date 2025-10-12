@@ -3,23 +3,19 @@
   import { Button } from "$lib/components/ui/button";
   import Editarpermiso from "$lib/components/Editarpermiso.svelte";
   import Crearpermiso from "$lib/components/Crearpermiso.svelte";
+  import { fetchRoles } from "$lib/services/userService";
+  import { onMount } from "svelte";
+  import { permisos, tieneFuncionalidad } from "$lib/stores/modulos"; // Asegúrate de importar la función `tieneFuncionalidad`
 
   type Perfil = {
-    id: number;
-    nombre: string;
-    estado: "Activo" | "Inactivo";
+    id_rol: number;
+    nombre_rol: string;
+    descripcion?: string;
+    estado?: "Activo" | "Inactivo";
   };
 
-  let perfiles: Perfil[] = [
-    { id: 1, nombre: "Administrador", estado: "Activo" },
-    { id: 2, nombre: "Ventanilla", estado: "Activo" },
-    { id: 3, nombre: "Coordinación", estado: "Activo" },
-    { id: 4, nombre: "Visualizador", estado: "Activo" },
-    { id: 5, nombre: "Turnero", estado: "Activo" },
-    { id: 6, nombre: "Turnero autogestión", estado: "Activo" },
-  ];
-
-  let sortColumn: keyof Perfil = "id";
+  let perfiles: Perfil[] = [];
+  let sortColumn: keyof Perfil = "id_rol";
   let sortDirection: "asc" | "desc" = "asc";
   let search = "";
   let estadoFiltro = "Todos";
@@ -27,6 +23,26 @@
   let mostrarModalEditar = false;
   let mostrarModalCrear = false;
   let perfilSeleccionado: Perfil | null = null;
+
+  // 🔹 Cargar roles desde la API al iniciar
+  onMount(async () => {
+    try {
+      const data = await fetchRoles();
+      perfiles = data.map((r: any) => ({
+        id_rol: r.id_rol,
+        nombre_rol: r.nombre_rol || r.nombre,
+        descripcion: r.descripcion,
+        estado: "Activo",
+      }));
+      console.log("✅ Perfiles cargados:", perfiles);
+    } catch (error) {
+      console.error("❌ Error cargando roles:", error);
+    }
+  });
+
+  // ✅ Verificar permisos en el módulo "Perfiles"
+  $: puedeCrearPerfil = tieneFuncionalidad("Permisos", "crear");
+  $: puedeEditarPerfil = tieneFuncionalidad("Permisos", "actualizar");
 
   function abrirModalCrear() {
     mostrarModalCrear = true;
@@ -68,38 +84,45 @@
         .includes(search.toLowerCase());
       const matchesEstado =
         estadoFiltro === "Todos" ||
-        u.estado.toLowerCase() === estadoFiltro.toLowerCase();
+        u.estado?.toLowerCase() === estadoFiltro.toLowerCase();
       return matchesSearch && matchesEstado;
     });
 
     const sorted = [...filtered].sort((a, b) => {
       const aVal = (a as any)[sortColumn];
       const bVal = (b as any)[sortColumn];
-      if (aVal == null && bVal == null) return 0;
-      if (aVal == null) return sortDirection === "asc" ? -1 : 1;
-      if (bVal == null) return sortDirection === "asc" ? 1 : -1;
-
       if (typeof aVal === "number" && typeof bVal === "number") {
         return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
       }
-
-      const aStr = String(aVal).toLowerCase();
-      const bStr = String(bVal).toLowerCase();
-
       return sortDirection === "asc"
-        ? aStr.localeCompare(bStr)
-        : bStr.localeCompare(aStr);
+        ? String(aVal).localeCompare(String(bVal))
+        : String(bVal).localeCompare(String(aVal));
     });
 
     return sorted;
   }
 
-  function toggleEstado(id: number) {
+  function toggleEstado(id_rol: number) {
     perfiles = perfiles.map((p) =>
-      p.id === id
+      p.id_rol === id_rol
         ? { ...p, estado: p.estado === "Activo" ? "Inactivo" : "Activo" }
         : p
     );
+  }
+
+  // ✅ Función para cerrar el modal de editar
+  function cerrarModalEditar() {
+    mostrarModalEditar = false;
+    perfilSeleccionado = null;
+  }
+
+  // ✅ Función para guardar cambios del perfil editado
+  function guardarPerfil(data: Perfil) {
+    const index = perfiles.findIndex((p) => p.id_rol === data.id_rol);
+    if (index !== -1) {
+      perfiles[index] = data;
+    }
+    cerrarModalEditar();
   }
 </script>
 
@@ -109,6 +132,7 @@
     class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4
          bg-[#da8780] hover:bg-[#c86c66] text-white"
     on:click={abrirModalCrear}
+    disabled={!puedeCrearPerfil}
   >
     <i class="bi bi-plus-lg"></i>
     Crear perfil
@@ -143,11 +167,11 @@
       <tr>
         <th
           class="px-4 py-3 text-left cursor-pointer"
-          on:click={() => toggleSort("id")}
+          on:click={() => toggleSort("id_rol")}
         >
           <div class="flex items-center gap-1.5">
             <span>No.</span>
-            {#if sortColumn === "id"}
+            {#if sortColumn === "id_rol"}
               <i
                 class={"bi " +
                   (sortDirection === "asc" ? "bi-arrow-up" : "bi-arrow-down")}
@@ -157,11 +181,11 @@
         </th>
         <th
           class="px-4 py-3 text-left cursor-pointer"
-          on:click={() => toggleSort("nombre")}
+          on:click={() => toggleSort("nombre_rol")}
         >
           <div class="flex items-center gap-1.5">
             <span>Nombre Perfil</span>
-            {#if sortColumn === "nombre"}
+            {#if sortColumn === "nombre_rol"}
               <i
                 class={"bi " +
                   (sortDirection === "asc" ? "bi-arrow-up" : "bi-arrow-down")}
@@ -181,13 +205,13 @@
           </td>
         </tr>
       {:else}
-        {#each displayed as p (p.id)}
+        {#each displayed as p (p.id_rol)}
           <tr class="even:bg-white odd:bg-gray-50 hover:bg-gray-100 transition">
-            <td class="px-4 py-3 border-b">{p.id}</td>
-            <td class="px-4 py-3 border-b">{p.nombre}</td>
+            <td class="px-4 py-3 border-b">{p.id_rol}</td>
+            <td class="px-4 py-3 border-b">{p.nombre_rol}</td>
             <td class="px-5 py-3 border-b border-gray-100 text-center">
               <button
-                on:click={() => toggleEstado(p.id)}
+                on:click={() => toggleEstado(p.id_rol)}
                 class="relative inline-flex items-center h-6 w-11 rounded-full transition-colors duration-300 focus:outline-none"
                 class:bg-green-500={p.estado === "Activo"}
                 class:bg-gray-400={p.estado !== "Activo"}
@@ -204,6 +228,7 @@
                 class="text-blue-600 hover:text-blue-800"
                 on:click={() => abrirModalEditar(p)}
                 title="Ver / Editar"
+                disabled={!puedeEditarPerfil}
               >
                 <i class="bi bi-pencil-square"></i>
               </button>
@@ -217,17 +242,16 @@
 
 {#if mostrarModalEditar && perfilSeleccionado}
   <Editarpermiso
-    visible={true}
+    visible={mostrarModalEditar}
     perfil={perfilSeleccionado}
-    onClose={() => (perfilSeleccionado = null)}
-    onSave={(data) => {
-      const index = perfiles.findIndex((u) => u.id === data.id);
-      if (index !== -1) perfiles[index] = data;
-      perfilSeleccionado = null;
-    }}
+    onClose={cerrarModalEditar}
+    onSave={guardarPerfil}
   />
 {/if}
 
 {#if mostrarModalCrear}
-  <Crearpermiso visible={mostrarModalCrear} onClose={() => (mostrarModalCrear = false)} />
+  <Crearpermiso 
+    visible={mostrarModalCrear} 
+    onClose={() => (mostrarModalCrear = false)} 
+  />
 {/if}
