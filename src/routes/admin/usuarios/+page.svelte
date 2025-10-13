@@ -4,9 +4,7 @@
   import Crearuser from "$lib/components/Crearuser.svelte";
   import Editaruser from "$lib/components/Editaruser.svelte";
   import { fetchUsuarios, fetchRoles, cambiarEstadoUsuario } from "$lib/services/userService";
-  
-  // Asumiendo que 'modulos' es ahora 'permisosStore' o que la carga se hace en otro lado.
-  // Mantenemos la importación original:
+
   import { tieneFuncionalidad } from "$lib/stores/modulos";
   import { get } from "svelte/store";
 
@@ -45,14 +43,11 @@
   // y usar la lógica de verificación de módulo.
   $: puedeCrearUsuario = tieneFuncionalidad("Usuarios", "crear");
   $: puedeEditar = tieneFuncionalidad("Usuarios", "actualizar");
-  $: puedeEliminar = tieneFuncionalidad("Usuarios", "eliminar");
-  // 🐛 FIX 2: Usar 'desactivar' que es el permiso específico para cambiar estado (según tu JSON).
   $: puedeCambiarEstado = tieneFuncionalidad("Usuarios", "desactivar"); 
 
   console.log("🔐 Permisos en Usuarios:", {
     puedeCrearUsuario,
     puedeEditar,
-    puedeEliminar,
     puedeCambiarEstado,
   });
 
@@ -201,6 +196,7 @@
 
 <div class="flex items-center justify-between mb-5">
   <h2 class="text-2xl font-semibold text-black-800">Listado de usuarios</h2>
+  <p>{puedeCrearUsuario}</p>
 <button
     class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4
   bg-[#da8780] hover:bg-[#c86c66] text-white"

@@ -162,13 +162,6 @@
                     {#if touched.password && errors.password}
                         <span class="text-xs text-red-500 mt-1">{errors.password}</span>
                     {/if}
-
-                    <a
-                        href="#"
-                        class="text-m text-[#a9887f] hover:text-[#716557] transition-colors font-base text-right mt-1"
-                    >
-                        ¿Olvidaste tu contraseña?
-                    </a>
                 </div>
 
                 <Button

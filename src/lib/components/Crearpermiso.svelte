@@ -1,83 +1,162 @@
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
+  import { createEventDispatcher, onMount } from "svelte";
+  import {
+    obtenerModulosYPermisos,
+    crearRolConModulosPermisos,
+    type Modulo as ServicioModulo,
+    type Permiso as ServicioPermiso,
+    type Modulo,
+  } from "$lib/services/rol";
 
   export let visible: boolean;
   export let onClose: () => void;
   const dispatch = createEventDispatcher();
 
-  // Datos del nuevo perfil
   let perfilNuevo = {
-    nombre: "",
-    estado: "Activo",
-    permisosSeleccionados: [] as number[]
+    nombre_rol: "",
+    descripcion: "",
   };
 
-  // Lista de módulos y permisos
-  let modulos = [
-    {
-      nombre: "Usuarios",
-      seleccionado: false,
-      permisos: [
-        { id: 1, nombre: "Crear Usuario", seleccionado: false },
-        { id: 2, nombre: "Editar Usuario", seleccionado: false },
-        { id: 3, nombre: "Activar/Inactivar Usuario", seleccionado: false },
-        { id: 4, nombre: "Ver Usuarios", seleccionado: false }
-      ]
-    },
-    {
-      nombre: "Perfiles",
-      seleccionado: false,
-      permisos: [
-        { id: 5, nombre: "Crear Perfil", seleccionado: false },
-        { id: 6, nombre: "Editar Perfil", seleccionado: false },
-        { id: 7, nombre: "Ver Perfiles", seleccionado: false }
-      ]
-    },
-    {
-      nombre: "Sedes",
-      seleccionado: false,
-      permisos: [
-        { id: 8, nombre: "Crear Sede", seleccionado: false },
-        { id: 9, nombre: "Editar Sede", seleccionado: false },
-        { id: 10, nombre: "Ver Sedes", seleccionado: false }
-      ]
-    }
-  ];
+  interface PermisoLocal extends ServicioPermiso {
+    seleccionado: boolean;
+    nombre_funcionalidad: string;
+    id_permiso: number;
+  }
 
-  // Marcar/desmarcar un permiso individual
+  interface ModuloLocal extends ServicioModulo {
+    seleccionado: boolean;
+    permisos: PermisoLocal[];
+  }
+
+  let modulos: ModuloLocal[] = [];
+  let cargando = false;
+  let errorMensaje = "";
+
+  onMount(async () => {
+    await cargarModulos();
+  });
+
+  async function cargarModulos() {
+    try {
+      cargando = true;
+      errorMensaje = "";
+      const respuesta = await obtenerModulosYPermisos();
+
+      const lista = Array.isArray(respuesta) ? respuesta : (respuesta.resultado ?? []);
+      
+      const agrupado: Record<string, ModuloLocal> = {};
+
+      lista.forEach((item: any) => {
+        const nombreModulo = item.nombre_modulo;
+        
+        if (!agrupado[nombreModulo]) {
+          agrupado[nombreModulo] = {
+            id_modulo: item.id_modulo,
+            nombre_modulo: nombreModulo,
+            seleccionado: false,
+            permisos: [],
+          };
+        }
+        
+        agrupado[nombreModulo].permisos.push({
+          id_permiso: item.id,
+          nombre_permiso: item.nombre_permiso,
+          nombre_funcionalidad: item.nombre_funcionalidad,
+          seleccionado: false,
+        });
+      });
+
+      modulos = Object.values(agrupado);
+
+      console.log("✅ Módulos agrupados correctamente:", modulos);
+    } catch (error) {
+      console.error("❌ Error al cargar módulos:", error);
+      errorMensaje = "Error al cargar módulos y permisos.";
+    } finally {
+      cargando = false;
+    }
+  }
+
+  // ✅ Alternar selección de un permiso individual
   function togglePermiso(moduloIndex: number, permisoIndex: number) {
-    const permiso = modulos[moduloIndex].permisos[permisoIndex];
+    const modulo = modulos[moduloIndex];
+    const permiso = modulo?.permisos?.[permisoIndex];
+    if (!permiso) return;
+
+    // Cambiar estado del permiso
     permiso.seleccionado = !permiso.seleccionado;
 
-    // Si todos los permisos están seleccionados, marcar el módulo
-    modulos[moduloIndex].seleccionado = modulos[moduloIndex].permisos.every(
-      (p) => p.seleccionado
-    );
+    // IMPORTANTE: Si se selecciona al menos un permiso, el módulo DEBE estar marcado
+    const hayPermisoSeleccionado = modulo.permisos.some((p) => p.seleccionado);
+    modulo.seleccionado = hayPermisoSeleccionado;
+    
+    // Forzar reactividad
+    modulos = [...modulos];
   }
 
-  // Marcar/desmarcar un módulo completo
+  // ✅ Alternar selección de todo el módulo
   function toggleModulo(index: number) {
     const modulo = modulos[index];
+    
+    // Cambiar estado del módulo
     modulo.seleccionado = !modulo.seleccionado;
-
-    modulo.permisos.forEach(
-      (permiso) => (permiso.seleccionado = modulo.seleccionado)
-    );
+    
+    // Si se desmarca el módulo, desactivar TODOS los permisos
+    if (!modulo.seleccionado) {
+      modulo.permisos.forEach((permiso) => {
+        permiso.seleccionado = false;
+      });
+    }
+    // Si se marca el módulo, activar TODOS los permisos
+    else {
+      modulo.permisos.forEach((permiso) => {
+        permiso.seleccionado = true;
+      });
+    }
+    
+    // Forzar reactividad
+    modulos = [...modulos];
   }
 
-  // Guardar perfil
-  function guardar() {
-    const permisosSeleccionados = modulos
-      .flatMap((m) => m.permisos.filter((p) => p.seleccionado))
-      .map((p) => p.id);
+  // ✅ Guardar rol con permisos
+  async function guardar() {
+    try {
+      cargando = true;
+      errorMensaje = "";
 
-    const perfil = {
-      ...perfilNuevo,
-      permisosSeleccionados
-    };
+      // Solo incluir módulos que estén marcados y tengan permisos seleccionados
+      const modulos_permisos = modulos
+        .filter((m) => m.seleccionado && m.permisos.some((p) => p.seleccionado))
+        .map((m) => ({
+          id_modulo: m.id_modulo,
+          permisos: m.permisos
+            .filter((p) => p.seleccionado)
+            .map((p) => p.id_permiso),
+        }));
 
-    dispatch("crear", perfil);
-    cerrarModal();
+      if (modulos_permisos.length === 0) {
+        errorMensaje = "Debes seleccionar al menos un módulo con sus permisos";
+        cargando = false;
+        return;
+      }
+
+      const dataEnviar = {
+        nombre_rol: perfilNuevo.nombre_rol.trim(),
+        descripcion: perfilNuevo.descripcion.trim(),
+        modulos_permisos,
+      };
+
+      console.log("📤 Enviando al backend:", dataEnviar);
+
+      const resultado = await crearRolConModulosPermisos(dataEnviar);
+      dispatch("crear", resultado);
+      cerrarModal();
+    } catch (err: any) {
+      console.error("❌ Error al guardar rol:", err);
+      errorMensaje = err?.message || "Error al guardar el rol.";
+    } finally {
+      cargando = false;
+    }
   }
 
   function cerrarModal() {
@@ -98,79 +177,98 @@
         Crear nuevo perfil
       </h2>
 
-      <!-- Campos básicos -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del perfil</label>
-          <input
-            type="text"
-            bind:value={perfilNuevo.nombre}
-            placeholder="Ej: Administrador"
-            class="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-[#da8780] outline-none"
-          />
+      {#if cargando}
+        <p class="text-center text-gray-600">Cargando módulos...</p>
+      {:else if errorMensaje}
+        <p class="text-center text-red-600">{errorMensaje}</p>
+      {:else}
+        <!-- Campos básicos -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Nombre del perfil
+            </label>
+            <input
+              type="text"
+              bind:value={perfilNuevo.nombre_rol}
+              placeholder="Ej: Gerente, Administrador..."
+              class="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-[#da8780] outline-none"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Descripción
+            </label>
+            <input
+              type="text"
+              bind:value={perfilNuevo.descripcion}
+              placeholder="Ej: Acceso total al sistema"
+              class="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-[#da8780] outline-none"
+            />
+          </div>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-          <select
-            bind:value={perfilNuevo.estado}
-            class="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-[#da8780] outline-none"
-          >
-            <option value="Activo">Activo</option>
-            <option value="Inactivo">Inactivo</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Lista de módulos -->
-      <div class="space-y-5">
-        {#each modulos as modulo, i}
-          <div class="border rounded-lg overflow-hidden shadow-sm">
-            <div class="bg-[#2e4750] text-white px-4 py-2 font-semibold text-sm uppercase flex justify-between items-center">
-              <label class="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  bind:checked={modulo.seleccionado}
-                  on:change={() => toggleModulo(i)}
-                  class="h-4 w-4 text-[#da8780] border-gray-300 rounded focus:ring-[#da8780]"
-                />
-                <span>{modulo.nombre}</span>
-              </label>
-            </div>
-            <div class="p-4 bg-gray-50">
-              {#each modulo.permisos as permiso, j}
-                <label class="flex items-center space-x-3 py-1">
+        <!-- Lista de módulos -->
+        <div class="space-y-6 mt-4">
+          {#each modulos as modulo, i}
+            <div
+              class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden"
+            >
+              <div
+                class="bg-[#2e4750] text-white px-4 py-2 font-semibold text-sm uppercase flex items-center justify-between"
+              >
+                <label class="flex items-center space-x-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    bind:checked={permiso.seleccionado}
-                    on:change={() => togglePermiso(i, j)}
-                    class="h-4 w-4 text-[#da8780] border-gray-300 rounded focus:ring-[#da8780]"
+                    checked={modulo.seleccionado}
+                    on:change={() => toggleModulo(i)}
+                    class="h-4 w-4 accent-[#da8780]"
                   />
-                  <span class="text-gray-800 text-sm">{permiso.nombre}</span>
+                  <span>{modulo.nombre_modulo}</span>
                 </label>
-              {/each}
-            </div>
-          </div>
-        {/each}
-      </div>
+              </div>
 
-      <!-- Botones -->
-      <div class="flex justify-end mt-6 space-x-3">
-        <button
-          type="button"
-          class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100"
-          on:click={cerrarModal}
-        >
-          Cancelar
-        </button>
-        <button
-          type="button"
-          class="px-4 py-2 rounded-md bg-[#da8780] text-white hover:bg-[#c86c66]"
-          on:click={guardar}
-        >
-          Guardar perfil
-        </button>
-      </div>
+              <div
+                class="bg-gray-50 px-6 py-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-y-2"
+              >
+                {#each modulo.permisos as permiso, j}
+                  <label
+                    class="flex items-center space-x-3 text-gray-800 text-sm cursor-pointer hover:text-[#da8780] transition"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={permiso.seleccionado}
+                      on:change={() => togglePermiso(i, j)}
+                      class="h-4 w-4 accent-[#da8780]"
+                    />
+                    <span>{permiso.nombre_permiso}</span>
+                  </label>
+                {/each}
+              </div>
+            </div>
+          {/each}
+        </div>
+
+        <!-- Botones -->
+        <div class="flex justify-end mt-6 space-x-3">
+          <button
+            type="button"
+            class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100"
+            on:click={cerrarModal}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="px-4 py-2 rounded-md bg-[#da8780] text-white hover:bg-[#c86c66]"
+            on:click={guardar}
+            disabled={cargando}
+          >
+            {cargando ? "Guardando..." : "Guardar perfil"}
+          </button>
+        </div>
+      {/if}
     </div>
   </div>
 {/if}

@@ -75,15 +75,18 @@ export const permisosPorModulo = derived(modulosStore, ($modulos) => {
  * @returns true si tiene el permiso, false si no
  */
 export function tieneFuncionalidad(nombreModulo: string, permiso: string): boolean {
+    console.log(nombreModulo, permiso )
   // Usamos get() para obtener el valor actual del store sin suscribir el componente
   const modulos = get(modulosStore); 
+  console.log("modulos", modulos)
   
   // 1. Busca el módulo (ignorando mayúsculas/minúsculas)
   const modulo = modulos.find(m => m.nombre_modulo.toLowerCase() === nombreModulo.toLowerCase());
+  console.log("modulo", modulo?.funcionalidades)
 
   if (modulo) {
     // 2. Busca el permiso dentro de las funcionalidades del módulo (ignorando mayúsculas/minúsculas)
-    return modulo.funcionalidades.some(f => f.permiso.toLowerCase() === permiso.toLowerCase());
+    return modulo.funcionalidades.some(f => f.permiso.toLowerCase() === permiso.toLowerCase())
   }
 
   return false;

@@ -1,10 +1,10 @@
 <script lang="ts">
-    import Login from "$lib/components/Login.svelte";
+  import Principal from "$lib/components/principal.svelte";
     
 </script>
 
 <div>
 
-  <Login />
+  <Principal />
 </div>
 
