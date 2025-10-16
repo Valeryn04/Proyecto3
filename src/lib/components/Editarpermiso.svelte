@@ -35,13 +35,15 @@
       const todosLosModulos = await obtenerModulosYPermisos();
       const modulosAsignados = await obtenerModulosPorRol(idRol);
 
-      modulos = todosLosModulos.map((mod) => {
-        const asignado = modulosAsignados.find((m) => m.id_modulo === mod.id_modulo);
+     // 🔹 Mezcla ambos arrays
+    modulos = todosLosModulos.map((mod) => {
+      const asignado = modulosAsignados.find((m) => m.id_modulo === mod.id_modulo);
 
-        const permisos = mod.permisos?.map((p) => {
-          const tiene = !!asignado?.funcionalidades?.some(
-            (f) => f.permiso?.toLowerCase() === p.nombre_permiso?.toLowerCase()
-          );
+      // 🔸 Marca los permisos asignados
+      const permisos = mod.permisos?.map((p) => {
+        const tiene = !!asignado?.funcionalidades?.some(
+          (f) => f.permiso?.toLowerCase() === p.nombre_permiso?.toLowerCase()
+        );
           return { ...p, asignada: tiene };
         }) || [];
 

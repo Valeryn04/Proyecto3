@@ -3,11 +3,14 @@
   import "bootstrap-icons/font/bootstrap-icons.css";
   import Crearuser from "$lib/components/Crearuser.svelte";
   import Editaruser from "$lib/components/Editaruser.svelte";
-  import { fetchUsuarios, fetchRoles, cambiarEstadoUsuario } from "$lib/services/userService";
+  import {
+    fetchUsuarios,
+    fetchRoles,
+    cambiarEstadoUsuario,
+  } from "$lib/services/userService";
 
   import { tieneFuncionalidad } from "$lib/stores/modulos";
   import { get } from "svelte/store";
-
 
   type Rol = {
     id_rol: number;
@@ -39,24 +42,20 @@
   let loading = true;
   let errorMessage = "";
 
-  // 🐛 FIX 1: Usar tieneFuncionalidad para 'crear' para mantener la reactividad 
-  // y usar la lógica de verificación de módulo.
   $: puedeCrearUsuario = tieneFuncionalidad("Usuarios", "crear");
   $: puedeEditar = tieneFuncionalidad("Usuarios", "actualizar");
-  $: puedeCambiarEstado = tieneFuncionalidad("Usuarios", "desactivar"); 
-
-  console.log("🔐 Permisos en Usuarios:", {
-    puedeCrearUsuario,
-    puedeEditar,
-    puedeCambiarEstado,
-  });
+  $: puedeCambiarEstado = tieneFuncionalidad("Usuarios", "desactivar");
+  $: puedeConsultar = tieneFuncionalidad("Usuarios", "consultar");
 
   onMount(async () => {
     try {
       loading = true;
       errorMessage = "";
 
-      const [rawUsuarios, rawRoles] = await Promise.all([fetchUsuarios(), fetchRoles()]);
+      const [rawUsuarios, rawRoles] = await Promise.all([
+        fetchUsuarios(),
+        fetchRoles(),
+      ]);
 
       roles = rawRoles;
 
@@ -167,7 +166,9 @@
   async function toggleEstado(id: number) {
     if (!puedeCambiarEstado) {
       // 🐛 FIX 3: Reemplazar alert() por un console.error o una notificación UI.
-      console.error("❌ Acceso Denegado: No tienes permisos para cambiar el estado de usuarios");
+      console.error(
+        "❌ Acceso Denegado: No tienes permisos para cambiar el estado de usuarios"
+      );
       return;
     }
 
@@ -196,16 +197,19 @@
 
 <div class="flex items-center justify-between mb-5">
   <h2 class="text-2xl font-semibold text-black-800">Listado de usuarios</h2>
-  <p>{puedeCrearUsuario}</p>
-<button
-    class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4
+  {#if puedeCrearUsuario}
+    <button
+      class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4
   bg-[#da8780] hover:bg-[#c86c66] text-white"
-    on:click={crearUsuario}
-    disabled={!puedeCrearUsuario}
-  >
-    <i class="bi bi-plus-lg pr-2"></i>
-    Crear usuario
-  </button>
+      on:click={crearUsuario}
+    >
+      <i class="bi bi-plus-lg pr-2"></i>
+      Crear usuario
+    </button>
+  {:else}
+    <span class="text-gray-300" title="Sin permisos para crear usuario">
+    </span>
+  {/if}
 </div>
 
 <div
@@ -232,7 +236,7 @@
   <p>Cargando usuarios...</p>
 {:else if errorMessage}
   <p class="text-red-500">{errorMessage}</p>
-{:else}
+{:else if puedeConsultar}
   <div
     class="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden mt-4"
   >
@@ -389,19 +393,26 @@
                 <td class="px-4 py-3 border-b border-gray-100">{u.perfil}</td>
 
                 <td class="px-5 py-3 border-b border-gray-100 text-center">
-                  <button
-                    on:click={() => toggleEstado(u.id)}
-                    disabled={!puedeCambiarEstado}
-                    class="relative inline-flex items-center h-6 w-11 rounded-full transition-colors duration-300 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                    class:bg-green-500={u.estado === "Activo"}
-                    class:bg-gray-400={u.estado !== "Activo"}
-                  >
+                  {#if puedeCambiarEstado}
+                    <button
+                      on:click={() => toggleEstado(u.id)}
+                      class="relative inline-flex items-center h-6 w-11 rounded-full transition-colors duration-300 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                      class:bg-green-500={u.estado === "Activo"}
+                      class:bg-gray-400={u.estado !== "Activo"}
+                    >
+                      <span
+                        class="inline-block w-5 h-5 transform bg-white rounded-full shadow transition-transform duration-300"
+                        class:translate-x-5={u.estado === "Activo"}
+                        class:translate-x-1={u.estado !== "Activo"}
+                      ></span>
+                    </button>
+                  {:else}
                     <span
-                      class="inline-block w-5 h-5 transform bg-white rounded-full shadow transition-transform duration-300"
-                      class:translate-x-5={u.estado === "Activo"}
-                      class:translate-x-1={u.estado !== "Activo"}
-                    ></span>
-                  </button>
+                      class="text-gray-300"
+                      title="Sin permisos para cambiar estado"
+                    >
+                    </span>
+                  {/if}
                 </td>
                 <td class="px-4 py-3 border-b border-gray-100 text-center">
                   <div class="inline-flex items-center gap-3">

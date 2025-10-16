@@ -105,6 +105,7 @@ export async function crearRolConModulosPermisos(
 
     const result = await response.json();
     console.log("✅ Rol creado correctamente:", result);
+    window.location.reload(); 
     return result;
   } catch (error: any) {
     console.error("❌ Error en crearRolConModulosPermisos:", error.message || error);
@@ -150,7 +151,13 @@ export async function actualizarRol(idRol: number, data: RolEditar): Promise<any
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+  window.location.reload(); 
 
-  if (!res.ok) throw new Error("Error al actualizar el rol");
-  return await res.json();
+ if (!res.ok) {
+    throw new Error("Error al actualizar el rol");
+  }
+
+ const resultado = await res.json();
+  window.location.reload(); // ✅ se ejecuta solo si todo salió bien
+  return resultado;
 }

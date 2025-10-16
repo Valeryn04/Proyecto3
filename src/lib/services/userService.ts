@@ -122,7 +122,7 @@ export async function crearUsuario(usuarioData: any) {
 
   console.log("📤 Enviando usuario al backend:", payload);
 
-  const response = await fetch(`${API_URL}/usuarios`, {
+  const response = await fetch(`${API_URL}/usuarios/`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -165,7 +165,7 @@ export async function crearUsuarioConAtributos(usuarioData: any) {
     atributos: usuarioData.atributos,
   };
 
-  const response = await fetch(`${API_URL}/usuarios`, {
+  const response = await fetch(`${API_URL}/usuarios/`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -182,6 +182,7 @@ export async function crearUsuarioConAtributos(usuarioData: any) {
 
   const resultado = await response.json();
   console.log("✅ Usuario creado con atributos:", resultado);
+   window.location.reload();
   return resultado;
 }
 
@@ -250,6 +251,7 @@ export async function actualizarUsuario(id: number, usuarioData: any) {
 
     const resultado = await response.json();
     console.log("✅ Usuario actualizado correctamente:", resultado);
+    window.location.reload(); 
     return resultado;
   } catch (error: any) {
     console.error("❌ Error en actualizarUsuario:", error);

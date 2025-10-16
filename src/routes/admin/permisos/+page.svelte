@@ -40,9 +40,9 @@
     }
   });
 
-  // ✅ Verificar permisos en el módulo "Perfiles"
   $: puedeCrearPerfil = tieneFuncionalidad("Permisos", "crear");
   $: puedeEditarPerfil = tieneFuncionalidad("Permisos", "actualizar");
+  $: puedeConsultarPerfil = tieneFuncionalidad("Permisos", "consultar");
 
   function abrirModalCrear() {
     mostrarModalCrear = true;
@@ -128,15 +128,16 @@
 
 <div class="flex items-center justify-between mb-5">
   <h2 class="text-2xl font-semibold text-gray-800">Listado de perfiles</h2>
-  <button
-    class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4
+  {#if puedeCrearPerfil}
+    <button
+      class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4
          bg-[#da8780] hover:bg-[#c86c66] text-white"
-    on:click={abrirModalCrear}
-    disabled={!puedeCrearPerfil}
-  >
-    <i class="bi bi-plus-lg"></i>
-    Crear perfil
-  </button>
+      on:click={abrirModalCrear}
+    >
+      <i class="bi bi-plus-lg"></i>
+      Crear perfil
+    </button>
+  {/if}
 </div>
 
 <div
@@ -159,86 +160,91 @@
   </select>
 </div>
 
-<div
-  class="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden"
->
-  <table class="min-w-full text-sm text-gray-800">
-    <thead class="bg-[#e7e7d3] text-gray-700 font-semibold uppercase text-sm">
-      <tr>
-        <th
-          class="px-4 py-3 text-left cursor-pointer"
-          on:click={() => toggleSort("id_rol")}
-        >
-          <div class="flex items-center gap-1.5">
-            <span>No.</span>
-            {#if sortColumn === "id_rol"}
-              <i
-                class={"bi " +
-                  (sortDirection === "asc" ? "bi-arrow-up" : "bi-arrow-down")}
-              ></i>
-            {/if}
-          </div>
-        </th>
-        <th
-          class="px-4 py-3 text-left cursor-pointer"
-          on:click={() => toggleSort("nombre_rol")}
-        >
-          <div class="flex items-center gap-1.5">
-            <span>Nombre Perfil</span>
-            {#if sortColumn === "nombre_rol"}
-              <i
-                class={"bi " +
-                  (sortDirection === "asc" ? "bi-arrow-up" : "bi-arrow-down")}
-              ></i>
-            {/if}
-          </div>
-        </th>
-        <th class="px-4 py-3 text-center">Estado</th>
-        <th class="px-4 py-3 text-center">Acción</th>
-      </tr>
-    </thead>
-    <tbody>
-      {#if displayed.length === 0}
+{#if puedeConsultarPerfil}
+  <div
+    class="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden"
+  >
+    <table class="min-w-full text-sm text-gray-800">
+      <thead class="bg-[#e7e7d3] text-gray-700 font-semibold uppercase text-sm">
         <tr>
-          <td colspan="4" class="text-center py-6 text-gray-500">
-            No se encontraron perfiles.
-          </td>
+          <th
+            class="px-4 py-3 text-left cursor-pointer w-[8%]"
+            on:click={() => toggleSort("id_rol")}
+          >
+            <div class="flex items-center gap-1.5">
+              <span>No.</span>
+              {#if sortColumn === "id_rol"}
+                <i
+                  class={"bi " +
+                    (sortDirection === "asc" ? "bi-arrow-up" : "bi-arrow-down")}
+                ></i>
+              {/if}
+            </div>
+          </th>
+          <th
+            class="px-4 py-3 text-left cursor-pointer w-[25%]"
+            on:click={() => toggleSort("nombre_rol")}
+          >
+            <div class="flex items-center gap-1.5">
+              <span>Nombre Perfil</span>
+              {#if sortColumn === "nombre_rol"}
+                <i
+                  class={"bi " +
+                    (sortDirection === "asc" ? "bi-arrow-up" : "bi-arrow-down")}
+                ></i>
+              {/if}
+            </div>
+          </th>
+          <th
+            class="px-4 py-3 text-left cursor-pointer w-[50%]"
+            on:click={() => toggleSort("descripcion")}
+          >
+            <div class="flex items-center gap-1.5">
+              <span>Descripción</span>
+              {#if sortColumn === "descripcion"}
+                <i
+                  class={"bi " +
+                    (sortDirection === "asc" ? "bi-arrow-up" : "bi-arrow-down")}
+                ></i>
+              {/if}
+            </div>
+          </th> <th class="px-4 py-3 text-center w-[17%]">Acción</th>
         </tr>
-      {:else}
-        {#each displayed as p (p.id_rol)}
-          <tr class="even:bg-white odd:bg-gray-50 hover:bg-gray-100 transition">
-            <td class="px-4 py-3 border-b">{p.id_rol}</td>
-            <td class="px-4 py-3 border-b">{p.nombre_rol}</td>
-            <td class="px-5 py-3 border-b border-gray-100 text-center">
-              <button
-                on:click={() => toggleEstado(p.id_rol)}
-                class="relative inline-flex items-center h-6 w-11 rounded-full transition-colors duration-300 focus:outline-none"
-                class:bg-green-500={p.estado === "Activo"}
-                class:bg-gray-400={p.estado !== "Activo"}
-              >
-                <span
-                  class="inline-block w-5 h-5 transform bg-white rounded-full shadow transition-transform duration-300"
-                  class:translate-x-5={p.estado === "Activo"}
-                  class:translate-x-1={p.estado !== "Activo"}
-                ></span>
-              </button>
-            </td>
-            <td class="px-4 py-3 border-b text-center">
-              <button
-                class="text-blue-600 hover:text-blue-800"
-                on:click={() => abrirModalEditar(p)}
-                title="Ver / Editar"
-                disabled={!puedeEditarPerfil}
-              >
-                <i class="bi bi-pencil-square"></i>
-              </button>
+      </thead>
+      <tbody>
+        {#if displayed.length === 0}
+          <tr>
+            <td colspan="4" class="text-center py-6 text-gray-500">
+              No se encontraron perfiles.
             </td>
           </tr>
-        {/each}
-      {/if}
-    </tbody>
-  </table>
-</div>
+        {:else}
+          {#each displayed as p (p.id_rol)}
+            <tr
+              class="even:bg-white odd:bg-gray-50 hover:bg-gray-100 transition"
+            >
+              <td class="px-4 py-3 border-b">{p.id_rol}</td>
+              <td class="px-4 py-3 border-b">{p.nombre_rol}</td>
+              <td class="px-4 py-3 border-b">{p.descripcion}</td>
+              <td class="px-4 py-3 border-b text-center">
+                {#if puedeEditarPerfil}
+                  <button
+                    class="text-blue-600 hover:text-blue-800"
+                    on:click={() => abrirModalEditar(p)}
+                    title="Ver / Editar"
+                    disabled={!puedeEditarPerfil}
+                  >
+                    <i class="bi bi-pencil-square"></i>
+                  </button>
+                {/if}
+              </td>
+            </tr>
+          {/each}
+        {/if}
+      </tbody>
+    </table>
+  </div>
+{/if}
 
 {#if mostrarModalEditar && perfilSeleccionado}
   <Editarpermiso
@@ -250,8 +256,8 @@
 {/if}
 
 {#if mostrarModalCrear}
-  <Crearpermiso 
-    visible={mostrarModalCrear} 
-    onClose={() => (mostrarModalCrear = false)} 
+  <Crearpermiso
+    visible={mostrarModalCrear}
+    onClose={() => (mostrarModalCrear = false)}
   />
 {/if}
