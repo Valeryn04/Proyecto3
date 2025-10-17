@@ -1,4 +1,4 @@
-const rawUrl = import.meta.env.VITE_API_URL || "https://fastapi-4-aqig.onrender.com/api";
+const rawUrl = import.meta.env.VITE_API_URL || "https://fastapi-4-aqig.onrender.com/api/login";
 const API_URL = rawUrl.replace(/\/+$/, ""); // quita barras finales duplicadas
 
 /**
