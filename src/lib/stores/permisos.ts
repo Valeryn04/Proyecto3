@@ -123,7 +123,7 @@ export function getFuncionalidadesModulo(nombreModulo: string): Funcionalidad[] 
  * @param idRol - ID del rol del usuario
  */
 export async function cargarPermisos(idRol: number): Promise<void> {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'; // Aseguramos un fallback
+    const API_URL = import.meta.env.VITE_API_URL || 'https://fastapi-4-aqig.onrender.com/api'; // Aseguramos un fallback
     
     try {
         // Llama a la API con el ID del rol

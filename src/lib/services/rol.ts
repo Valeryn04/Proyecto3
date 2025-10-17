@@ -2,7 +2,7 @@
 // Servicio para gestión de roles y permisos
 // ============================================
 
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
+const API_URL = import.meta.env.VITE_API_URL || "https://fastapi-4-aqig.onrender.com/api";
 
 // =======================
 // Tipos de datos

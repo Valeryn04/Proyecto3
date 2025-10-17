@@ -127,7 +127,7 @@ export function getFuncionalidadesModulo(nombreModulo: string): Funcionalidad[] 
  */
 export async function cargarPermisos(idRol: number): Promise<void> {
   // Usamos import.meta.env para acceder a las variables de entorno de Vite/SvelteKit
-  const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+  const API_URL = import.meta.env.VITE_API_URL || 'https://fastapi-4-aqig.onrender.com/api';
   
   try {
     const response = await fetch(`${API_URL}/rol-permisos/modulos-usuario/${idRol}`);
